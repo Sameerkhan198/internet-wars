@@ -1,0 +1,234 @@
+// Internet Wars — data model.
+// Local dev uses SQLite for zero-setup; swap provider to "postgresql" and set
+// DATABASE_URL to a Postgres connection string for production. Field types
+// below are chosen to be valid under both providers.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  LIVE
+  PAUSED
+  ENDED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+  CHARGEBACK
+  CANCELLED
+}
+
+enum ActivityEventType {
+  CONTRIBUTION
+  LEAD_CHANGE
+  MILESTONE
+  CAMPAIGN_START
+  CAMPAIGN_END
+  LARGE_SUPPORT
+  MOMENTUM_CHANGE
+}
+
+enum FraudReviewStatus {
+  FLAGGED
+  UNDER_REVIEW
+  CLEARED
+  BLOCKED
+}
+
+model Campaign {
+  id                 String         @id @default(cuid())
+  slug               String         @unique
+  title              String
+  description        String
+  // Nullable to break the Campaign<->Team circular FK: a campaign is created
+  // first, then its two teams (which point back at campaignId), then this
+  // row is patched with the resulting team ids. Always non-null once LIVE.
+  teamAId            String?
+  teamBId            String?
+  startAt            DateTime
+  endAt              DateTime
+  status             CampaignStatus @default(DRAFT)
+  currency           String         @default("INR")
+  minimumContribution Int           @default(1000) // paise/smallest unit
+  maximumContribution Int           @default(10000000)
+  rules              String         @default("")
+  disclaimer         String         @default("Internet Wars is a community competition platform. Contributions are voluntary support for a selected campaign side and are not investments or deposits. Participation does not provide ownership, financial returns or guaranteed rewards. Campaign rules, payment eligibility, refunds and participation requirements apply. The platform does not provide investment, trading or financial advice.")
+  winnerTeamId       String?
+  finalizedAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  teamA         Team?                @relation("CampaignTeamA", fields: [teamAId], references: [id])
+  teamB         Team?                @relation("CampaignTeamB", fields: [teamBId], references: [id])
+  contributions Contribution[]
+  activityEvents ActivityEvent[]
+  leaderboardSnapshots LeaderboardSnapshot[]
+  shareEvents   ShareEvent[]
+
+  @@index([status])
+}
+
+model Team {
+  id           String   @id @default(cuid())
+  campaignId   String
+  name         String
+  slug         String
+  shortName    String
+  description  String   @default("")
+  logo         String   @default("")
+  accentTheme  String   @default("")
+  createdAt    DateTime @default(now())
+
+  contributions   Contribution[]
+  campaignsAsA    Campaign[] @relation("CampaignTeamA")
+  campaignsAsB    Campaign[] @relation("CampaignTeamB")
+
+  @@unique([campaignId, slug])
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String?  @unique
+  displayName String
+  isAnonymousDefault Boolean @default(false)
+  status      String   @default("ACTIVE") // ACTIVE, RESTRICTED, BLOCKED
+  createdAt   DateTime @default(now())
+
+  contributions Contribution[]
+  shareEvents   ShareEvent[]
+}
+
+model Creator {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  referralCode  String   @unique
+  createdAt     DateTime @default(now())
+
+  referrals Referral[]
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  creatorId  String
+  campaignId String
+  visits     Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  creator Creator @relation(fields: [creatorId], references: [id])
+
+  @@index([campaignId])
+}
+
+model Payment {
+  id                        String   @id @default(cuid())
+  contributionId            String   @unique
+  provider                  String // "demo" | future real providers
+  providerOrderId            String?  @unique
+  providerTransactionId      String?  @unique
+  status                     TransactionStatus @default(PENDING)
+  rawWebhookPayload          String?
+  idempotencyKey              String   @unique
+  createdAt                  DateTime @default(now())
+  verifiedAt                  DateTime?
+
+  contribution Contribution @relation(fields: [contributionId], references: [id])
+
+  @@index([status])
+  @@index([providerTransactionId])
+}
+
+model Contribution {
+  id            String   @id @default(cuid())
+  campaignId    String
+  teamId        String
+  userId        String?
+  displayName   String
+  isAnonymous   Boolean  @default(false)
+  amount        Int // smallest currency unit (paise)
+  currency      String   @default("INR")
+  status        TransactionStatus @default(PENDING)
+  refundStatus  String   @default("NONE") // NONE, REQUESTED, REFUNDED
+  fraudStatus   FraudReviewStatus?
+  ipHash        String?
+  createdAt     DateTime @default(now())
+  verifiedAt    DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  team     Team     @relation(fields: [teamId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+  payment  Payment?
+  activityEvents ActivityEvent[]
+
+  @@index([campaignId, teamId, status])
+  @@index([status, createdAt])
+}
+
+model ActivityEvent {
+  id           String            @id @default(cuid())
+  campaignId   String
+  type         ActivityEventType
+  contributionId String?
+  message      String
+  metadata     String            @default("{}")
+  createdAt    DateTime          @default(now())
+
+  campaign     Campaign      @relation(fields: [campaignId], references: [id])
+  contribution Contribution? @relation(fields: [contributionId], references: [id])
+
+  @@index([campaignId, createdAt])
+}
+
+model LeaderboardSnapshot {
+  id          String   @id @default(cuid())
+  campaignId  String
+  teamATotal  Int
+  teamBTotal  Int
+  teamASupporters Int
+  teamBSupporters Int
+  createdAt   DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId, createdAt])
+}
+
+model ShareEvent {
+  id         String   @id @default(cuid())
+  campaignId String
+  userId     String?
+  channel    String // whatsapp, x, instagram, telegram, copy_link
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("ADMIN")
+  createdAt    DateTime @default(now())
+}
+
+model RateLimitBucket {
+  id         String   @id @default(cuid())
+  bucketKey  String   @unique // e.g. "contribute:ip:1.2.3.4"
+  count      Int      @default(0)
+  windowStart DateTime
+
+  @@index([bucketKey])
+}
