@@ -2,7 +2,6 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getPaymentProvider, scheduleDemoWebhookDelivery } from "@/lib/payments/demoProvider";
 import { computeCampaignScore } from "@/server/scoring";
-import { publish } from "@/server/realtime";
 import { sanitizeDisplayName } from "@/lib/validation";
 import type { Campaign, Team } from "@prisma/client";
 
@@ -189,7 +188,10 @@ async function onContributionSucceeded(
   }
 
   for (const e of events) {
-    const saved = await prisma.activityEvent.create({
+    // Clients pick these up by polling /api/activity/[slug] — see
+    // useCampaignPolling. No push mechanism is needed (or reliable across
+    // serverless instances), so this is just a plain ledger write.
+    await prisma.activityEvent.create({
       data: {
         campaignId: campaign.id,
         type: e.type,
@@ -197,28 +199,7 @@ async function onContributionSucceeded(
         message: e.message,
       },
     });
-    publish(campaign.id, {
-      type: "ACTIVITY",
-      campaignId: campaign.id,
-      id: saved.id,
-      eventType: e.type,
-      message: e.message,
-      createdAt: saved.createdAt.toISOString(),
-    });
   }
-
-  publish(campaign.id, {
-    type: "SCORE_UPDATE",
-    campaignId: campaign.id,
-    teamATotal: score.teamA.total,
-    teamBTotal: score.teamB.total,
-    teamAPercentage: score.teamA.percentage,
-    teamBPercentage: score.teamB.percentage,
-    teamASupporters: score.teamA.supporterCount,
-    teamBSupporters: score.teamB.supporterCount,
-    leaderTeamId: score.leaderTeamId,
-    differenceAmount: score.differenceAmount,
-  });
 
   await prisma.leaderboardSnapshot.create({
     data: {

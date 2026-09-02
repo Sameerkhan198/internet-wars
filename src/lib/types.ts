@@ -40,19 +40,6 @@ export type LeaderboardRow = {
   amount: number;
 };
 
-export type ScoreUpdatePayload = {
-  type: "SCORE_UPDATE";
-  campaignId: string;
-  teamATotal: number;
-  teamBTotal: number;
-  teamAPercentage: number;
-  teamBPercentage: number;
-  teamASupporters: number;
-  teamBSupporters: number;
-  leaderTeamId: string | null;
-  differenceAmount: number;
-};
-
 export type ActivityEventDTO = {
   id: string;
   type: string;

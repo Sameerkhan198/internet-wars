@@ -1,22 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Scoreboard from "./Scoreboard";
 import Countdown from "./Countdown";
 import MomentumSection from "./MomentumSection";
 import ActivityFeed from "./ActivityFeed";
 import LeaderboardPreview from "./LeaderboardPreview";
 import ContributionModal from "./ContributionModal";
-import { useCampaignRealtime } from "@/hooks/useCampaignRealtime";
+import { useCampaignPolling } from "@/hooks/useCampaignPolling";
 import { formatINRCompact } from "@/lib/money";
 import type {
   ActivityEventDTO,
   CampaignDTO,
   CampaignScoreDTO,
   LeaderboardRow,
-  ScoreUpdatePayload,
   TeamDTO,
 } from "@/lib/types";
+
+const POLL_INTERVAL_MS = 4000;
 
 export default function BattleView({
   campaign,
@@ -38,40 +39,16 @@ export default function BattleView({
   const [events, setEvents] = useState<ActivityEventDTO[]>([]);
   const [activeTeam, setActiveTeam] = useState<TeamDTO | null>(null);
 
-  const onScore = useCallback(
-    (payload: ScoreUpdatePayload) => {
-      setScore({
-        teamA: { teamId: teamA.id, total: payload.teamATotal, supporterCount: payload.teamASupporters, percentage: payload.teamAPercentage },
-        teamB: { teamId: teamB.id, total: payload.teamBTotal, supporterCount: payload.teamBSupporters, percentage: payload.teamBPercentage },
-        combinedTotal: payload.teamATotal + payload.teamBTotal,
-        leaderTeamId: payload.leaderTeamId,
-        differenceAmount: payload.differenceAmount,
-      });
-    },
-    [teamA.id, teamB.id]
-  );
-
-  const onActivity = useCallback((payload: ActivityEventDTO) => {
-    setEvents((prev) => [payload, ...prev].slice(0, 30));
+  const onUpdate = useCallback((data: { score: CampaignScoreDTO; momentum: { teamA10m: number; teamB10m: number } }) => {
+    setScore(data.score);
+    setMomentum(data.momentum);
   }, []);
 
-  useCampaignRealtime(campaign.slug, onScore, onActivity);
+  const onActivity = useCallback((newEvents: ActivityEventDTO[]) => {
+    setEvents((prev) => [...newEvents, ...prev].slice(0, 30));
+  }, []);
 
-  // Momentum (rolling 10-min window) isn't pushed over SSE — poll it
-  // periodically so the "gaining momentum" indicator stays fresh.
-  useEffect(() => {
-    if (campaign.status !== "LIVE") return;
-    const id = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/campaigns/${campaign.slug}`);
-        const data = await res.json();
-        setMomentum({ teamA10m: data.momentum.teamA10m, teamB10m: data.momentum.teamB10m });
-      } catch {
-        // Momentum is a nice-to-have indicator; a failed refresh just keeps the last known value.
-      }
-    }, 20000);
-    return () => clearInterval(id);
-  }, [campaign.slug, campaign.status]);
+  useCampaignPolling(campaign.slug, POLL_INTERVAL_MS, onUpdate, onActivity);
 
   const isLive = campaign.status === "LIVE";
 
