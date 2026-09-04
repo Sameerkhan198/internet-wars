@@ -25,7 +25,6 @@ describe("contribution + payment ledger", () => {
       amount: 50000,
       displayName: "Rahul",
       isAnonymous: false,
-      baseUrl: "http://localhost:3000",
     });
 
     const score = await computeCampaignScore(campaign.id, teamA.id, teamB.id);
@@ -41,7 +40,6 @@ describe("contribution + payment ledger", () => {
       amount: 50000,
       displayName: "Rahul",
       isAnonymous: false,
-      baseUrl: "http://localhost:3000",
     });
     const payment = await prisma.payment.findUniqueOrThrow({ where: { contributionId: contribution.id } });
 
@@ -63,7 +61,6 @@ describe("contribution + payment ledger", () => {
       amount: 50000,
       displayName: "Rahul",
       isAnonymous: false,
-      baseUrl: "http://localhost:3000",
     });
     const payment = await prisma.payment.findUniqueOrThrow({ where: { contributionId: contribution.id } });
 
@@ -85,7 +82,6 @@ describe("contribution + payment ledger", () => {
       amount: 50000,
       displayName: "Rahul",
       isAnonymous: false,
-      baseUrl: "http://localhost:3000",
     });
     const payment = await prisma.payment.findUniqueOrThrow({ where: { contributionId: contribution.id } });
 
@@ -116,7 +112,6 @@ describe("contribution + payment ledger", () => {
       amount: 50000,
       displayName: "Rahul",
       isAnonymous: false,
-      baseUrl: "http://localhost:3000",
     });
     const payment = await prisma.payment.findUniqueOrThrow({ where: { contributionId: contribution.id } });
 
@@ -138,7 +133,6 @@ describe("contribution + payment ledger", () => {
         amount: 1, // below minimumContribution of 1000
         displayName: "Rahul",
         isAnonymous: false,
-        baseUrl: "http://localhost:3000",
       })
     ).rejects.toThrow(ContributionError);
 
@@ -149,7 +143,6 @@ describe("contribution + payment ledger", () => {
         amount: 999_999_999, // above maximumContribution
         displayName: "Rahul",
         isAnonymous: false,
-        baseUrl: "http://localhost:3000",
       })
     ).rejects.toThrow(ContributionError);
   });
@@ -163,7 +156,6 @@ describe("contribution + payment ledger", () => {
         amount: 50000,
         displayName: "Rahul",
         isAnonymous: false,
-        baseUrl: "http://localhost:3000",
       })
     ).rejects.toThrow(ContributionError);
   });
@@ -176,7 +168,6 @@ describe("contribution + payment ledger", () => {
       amount: 50000,
       displayName: "SecretIdentity",
       isAnonymous: true,
-      baseUrl: "http://localhost:3000",
     });
     expect(contribution.displayName).toBe("Anonymous Supporter");
 

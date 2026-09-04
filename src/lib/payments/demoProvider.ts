@@ -115,34 +115,24 @@ export const demoProvider: PaymentProvider = {
 };
 
 /**
- * Simulates the external provider's async confirmation callback. A real
- * provider calls our webhook endpoint directly over HTTPS; here we build the
- * exact same signed payload and POST it to our own webhook route after a
- * short delay, so the verification code path is identical to production.
+ * Builds the signed callback payload the provider would send for an order.
+ *
+ * Returns null for an unknown order — the in-memory order book is per-process,
+ * so on a serverless host another instance won't have it. Callers treat that
+ * as "nothing to deliver" rather than an error.
  */
-export function scheduleDemoWebhookDelivery(providerOrderId: string, baseUrl: string) {
+export function buildDemoWebhookDelivery(
+  providerOrderId: string
+): { rawBody: string; signature: string } | null {
   const order = demoOrders.get(providerOrderId);
-  if (!order) return;
+  if (!order) return null;
 
-  const delayMs = 1500 + Math.random() * 2500;
-  setTimeout(async () => {
-    const payload = JSON.stringify({
-      providerOrderId: order.providerOrderId,
-      providerTransactionId: order.providerTransactionId,
-      status: order.outcome,
-    });
-    const signature = signDemoWebhook(payload);
-    try {
-      await fetch(`${baseUrl}/api/webhooks/demo`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-demo-signature": signature },
-        body: payload,
-      });
-    } catch {
-      // In local dev the fetch itself can occasionally race server startup; the
-      // demo UI also polls payment status separately so the user isn't stuck.
-    }
-  }, delayMs);
+  const rawBody = JSON.stringify({
+    providerOrderId: order.providerOrderId,
+    providerTransactionId: order.providerTransactionId,
+    status: order.outcome,
+  });
+  return { rawBody, signature: signDemoWebhook(rawBody) };
 }
 
 export function getPaymentProvider(): PaymentProvider {

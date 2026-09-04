@@ -1,14 +1,14 @@
 // Internet Wars — data model.
-// Local dev uses SQLite for zero-setup; swap provider to "postgresql" and set
-// DATABASE_URL to a Postgres connection string for production. Field types
-// below are chosen to be valid under both providers.
+// Postgres in both local dev and production: serverless hosts have no
+// persistent disk, so SQLite cannot work once deployed. Point DATABASE_URL at
+// the same hosted database locally and the local site mirrors the live one.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

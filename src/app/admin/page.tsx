@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatINR } from "@/lib/money";
 import LogoutButton from "@/components/admin/LogoutButton";
+import SeedButton from "@/components/admin/SeedButton";
 
 export const metadata = { title: "Admin — Internet Wars" };
 export const dynamic = "force-dynamic";
@@ -27,10 +28,23 @@ export default async function AdminOverviewPage() {
 
   return (
     <main className="flex-1 mx-auto max-w-6xl w-full px-4 sm:px-6 py-12">
-      <div className="flex items-center justify-between mb-10">
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <h1 className="text-3xl font-black tracking-tight">Admin Overview</h1>
-        <LogoutButton />
+        <div className="flex items-center gap-2">
+          <SeedButton />
+          <LogoutButton />
+        </div>
       </div>
+
+      {campaigns.length === 0 && (
+        <div className="rounded-xl border border-border p-6 mb-10 bg-background-elevated/40">
+          <div className="font-bold mb-1">No campaign yet</div>
+          <p className="text-sm text-muted">
+            This database is empty. Use <strong>Load demo data</strong> above to create the demo battle,
+            its two teams and a few hundred contributions.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
         <Stat label="Verified Contributions" value={successCount.toLocaleString("en-IN")} />

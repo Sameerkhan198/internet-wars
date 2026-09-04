@@ -13,18 +13,19 @@ compliance review is complete for the Indian market.
 
 - **Framework:** Next.js 16 (App Router, Turbopack), React 19, TypeScript (strict)
 - **Styling:** Tailwind CSS v4
-- **Database:** SQLite for local dev via Prisma 6 (`prisma/schema.prisma` is Postgres-compatible — see
-  [Switching to Postgres](#switching-to-postgres))
-- **Real-time:** Server-Sent Events (in-memory pub/sub; swap for Redis pub/sub if you scale past one
-  process)
+- **Database:** Postgres via Prisma 6, in both local dev and production
+- **Live updates:** short-interval polling (works identically on a persistent server and on serverless)
 - **Validation:** Zod
 - **Tests:** Vitest, running against a real (SQLite) database
 
 ## Getting started
 
+You need a Postgres database. Any will do — a hosted one (Neon, Supabase, Vercel Postgres) is easiest,
+and a free tier is plenty. Put its connection string in `.env` as `DATABASE_URL`, then:
+
 ```bash
 npm install
-npm run db:push      # create/sync the local SQLite schema
+npm run db:push      # create the tables
 npm run db:seed       # populate demo campaign, teams, ~180 demo contributions
 npm run dev
 ```
@@ -114,13 +115,27 @@ system yet — this is a convenience, not a source of truth, and holds no paymen
 **replace it with a real auth provider (NextAuth, Clerk, etc.) backed by the `AdminUser` table before this
 is used by more than one operator or exposed publicly.**
 
-### Switching to Postgres
+### Deploying
 
-`prisma/schema.prisma` uses field types valid under both SQLite and Postgres. To switch:
+The `build` script runs `prisma db push` before `next build`, so a fresh deployment creates its own
+tables as long as `DATABASE_URL` is set in the host's environment. That's deliberate for an MVP with no
+migration history — **replace it with `prisma migrate deploy` and versioned migrations before this holds
+data anyone cares about**, since `db push` has no rollback story.
 
-1. Change `datasource db { provider = "sqlite" }` to `provider = "postgresql"`.
-2. Point `DATABASE_URL` at a Postgres connection string.
-3. Run `npx prisma db push` (or set up `prisma migrate` for versioned migrations).
+Once deployed, sign in at `/admin` and use **Load demo data** to populate the demo battle. That route
+runs the same seed routine as `npm run db:seed`, but from inside the deployed app, so the production
+connection string never has to leave the host. It refuses to run unless `DEMO_MODE=true`, and it deletes
+all existing campaign data before reseeding.
+
+### Running the tests
+
+Tests need `DATABASE_URL` set. They run against a `test` schema on that same database (the connection
+string gets `?schema=test` appended automatically in `src/test/setup.ts`), so a test run truncating
+tables can't touch your real data. Create the test schema once with:
+
+```bash
+npx prisma db push
+```
 
 ## What's implemented vs. deferred
 

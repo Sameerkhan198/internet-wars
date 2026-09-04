@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { getPaymentProvider, scheduleDemoWebhookDelivery } from "@/lib/payments/demoProvider";
+import { getPaymentProvider, demoProvider, buildDemoWebhookDelivery } from "@/lib/payments/demoProvider";
 import { computeCampaignScore } from "@/server/scoring";
 import { sanitizeDisplayName } from "@/lib/validation";
 import type { Campaign, Team } from "@prisma/client";
@@ -25,9 +25,8 @@ export async function initiateContribution(params: {
   isAnonymous: boolean;
   userId?: string;
   ipHash?: string;
-  baseUrl: string;
 }) {
-  const { campaign, team, amount, isAnonymous, userId, ipHash, baseUrl } = params;
+  const { campaign, team, amount, isAnonymous, userId, ipHash } = params;
   const displayName = isAnonymous ? "Anonymous Supporter" : sanitizeDisplayName(params.displayName);
 
   if (campaign.status !== "LIVE") {
@@ -84,10 +83,40 @@ export async function initiateContribution(params: {
   });
 
   if (process.env.DEMO_MODE === "true") {
-    scheduleDemoWebhookDelivery(providerOrderId, baseUrl);
+    await deliverDemoWebhook(providerOrderId);
   }
 
   return { contribution, clientPayload };
+}
+
+/**
+ * Runs the demo provider's confirmation callback in-process.
+ *
+ * A real provider calls our webhook endpoint over HTTPS some seconds later.
+ * We can't simulate that with a timer: on a serverless host the function is
+ * frozen the moment it responds, so a deferred callback would never fire and
+ * every contribution would sit PENDING forever. Instead the same signed
+ * payload is verified and applied synchronously, through the identical
+ * signature-check and idempotency path a real webhook would take. The user
+ * still sees a "verifying payment" state because the client polls for status
+ * rather than trusting the response.
+ */
+async function deliverDemoWebhook(providerOrderId: string) {
+  const delivery = buildDemoWebhookDelivery(providerOrderId);
+  if (!delivery) return;
+
+  const result = await demoProvider.handleWebhook(
+    delivery.rawBody,
+    new Headers({ "x-demo-signature": delivery.signature })
+  );
+
+  await applyWebhookResult({
+    providerOrderId: result.providerOrderId,
+    providerTransactionId: result.providerTransactionId,
+    status: result.status === "SUCCESS" ? "SUCCESS" : "FAILED",
+    authentic: result.authentic,
+    rawBody: delivery.rawBody,
+  });
 }
 
 /**

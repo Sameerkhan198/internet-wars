@@ -37,7 +37,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
     const { contribution, clientPayload } = await initiateContribution({
       campaign,
       team,
@@ -45,7 +44,6 @@ export async function POST(request: Request) {
       displayName,
       isAnonymous,
       ipHash: hashIp(ip),
-      baseUrl,
     });
 
     return NextResponse.json({
