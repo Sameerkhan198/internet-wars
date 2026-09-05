@@ -58,12 +58,22 @@ Vercel project, but it was never confirmed that the environment variable is name
 `POSTGRES_PRISMA_URL` and `POSTGRES_URL_NON_POOLING` — **not** `DATABASE_URL`, which is what
 `prisma/schema.prisma` reads.
 
+**Observed at handoff:** `https://internet-wars.vercel.app` returns a 500 whose HTML is a correctly
+rendered Next error page — right `<title>`, right meta tags, real chunks. That shape means the app is
+serving and dying at **runtime**, not failing to build, and the overwhelmingly likely cause is Prisma
+being unable to reach a database.
+
 **First thing to do:**
 
-1. Vercel → project → Settings → Environment Variables.
-2. If there is no `DATABASE_URL`, add one. Use the value of `POSTGRES_URL_NON_POOLING` (the direct,
-   non-pooled connection) — the build runs `prisma db push`, which wants a direct connection.
-3. Redeploy. If the build fails, read the build log; `prisma db push` failing is the likely culprit.
+1. Vercel → project → Deployments. Check whether the latest commit (`6f2c0be`) actually built. If the
+   build **failed**, Vercel keeps serving the previous successful deployment — which would explain a 500
+   from old code, and the build log will name the real error (`prisma db push` failing for want of
+   `DATABASE_URL` is the prime suspect).
+2. Vercel → Settings → Environment Variables. If there is no `DATABASE_URL`, add one. Use the value of
+   `POSTGRES_URL_NON_POOLING` (the direct, non-pooled connection) — the build runs `prisma db push`,
+   which wants a direct connection.
+3. Redeploy, then load the site. A working deploy shows an empty-state battle page; sign in at `/admin`
+   and click **Load demo data** to populate it.
 
 If you'd rather do this properly than quickly, use Prisma's `directUrl`:
 
