@@ -21,7 +21,8 @@ compliance review is complete for the Indian market.
 ## Getting started
 
 You need a Postgres database. Any will do — a hosted one (Neon, Supabase, Vercel Postgres) is easiest,
-and a free tier is plenty. Put its connection string in `.env` as `DATABASE_URL`, then:
+and a free tier is plenty. Put its pooled connection string in `.env` as `POSTGRES_PRISMA_URL` and its
+direct one as `POSTGRES_URL_NON_POOLING` (the names Supabase's Vercel integration uses), then:
 
 ```bash
 npm install
@@ -37,7 +38,8 @@ Open http://localhost:3000. Admin dashboard: http://localhost:3000/admin/login (
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Prisma datasource. `file:./dev.db` locally; a Postgres URL in production. |
+| `POSTGRES_PRISMA_URL` | Prisma runtime datasource — pooled Postgres connection. Injected automatically by the Supabase Vercel integration. |
+| `POSTGRES_URL_NON_POOLING` | Prisma `directUrl` — direct connection, used by `prisma db push` during the build. Also injected by the integration. |
 | `DEMO_MODE` | Must be `"true"` until a real payment provider is integrated. Gates the simulated webhook delivery timer. |
 | `NEXT_PUBLIC_DEMO_MODE` | Same flag, exposed client-side to show the DEMO MODE banner. Keep in sync with `DEMO_MODE`. |
 | `DEMO_PAYMENT_FAILURE_RATE` | Fraction (0–1) of demo payments that resolve as FAILED, to exercise the failure UI. |
@@ -118,7 +120,7 @@ is used by more than one operator or exposed publicly.**
 ### Deploying
 
 The `build` script runs `prisma db push` before `next build`, so a fresh deployment creates its own
-tables as long as `DATABASE_URL` is set in the host's environment. That's deliberate for an MVP with no
+tables as long as the `POSTGRES_*` connection variables are set in the host's environment. That's deliberate for an MVP with no
 migration history — **replace it with `prisma migrate deploy` and versioned migrations before this holds
 data anyone cares about**, since `db push` has no rollback story.
 
@@ -129,7 +131,7 @@ all existing campaign data before reseeding.
 
 ### Running the tests
 
-Tests need `DATABASE_URL` set. They run against a `test` schema on that same database (the connection
+Tests need `POSTGRES_PRISMA_URL` and `POSTGRES_URL_NON_POOLING` set. They run against a `test` schema on that same database (the connection
 string gets `?schema=test` appended automatically in `src/test/setup.ts`), so a test run truncating
 tables can't touch your real data. Create the test schema once with:
 

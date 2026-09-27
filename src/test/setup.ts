@@ -14,19 +14,25 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL is not set. Tests need a Postgres connection string — put one in .env, " +
-      "then run `npx prisma db push` once so the test schema exists."
-  );
+const DB_URL_KEYS = ["POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING"] as const;
+
+for (const key of DB_URL_KEYS) {
+  if (!process.env[key]) {
+    throw new Error(
+      `${key} is not set. Tests need POSTGRES_PRISMA_URL and POSTGRES_URL_NON_POOLING — put them ` +
+        "in .env, then run `npx prisma db push` once so the test schema exists."
+    );
+  }
 }
 
 // Tests run in their own Postgres schema. resetDb() truncates every table
 // between tests, so pointing them at the default `public` schema would delete
 // real campaign data on every run.
-const url = new URL(process.env.DATABASE_URL);
-url.searchParams.set("schema", "test");
-process.env.DATABASE_URL = url.toString();
+for (const key of DB_URL_KEYS) {
+  const url = new URL(process.env[key]!);
+  url.searchParams.set("schema", "test");
+  process.env[key] = url.toString();
+}
 
 process.env.WEBHOOK_SECRET = "test_webhook_secret";
 process.env.DEMO_MODE = "false"; // tests drive the webhook flow manually
