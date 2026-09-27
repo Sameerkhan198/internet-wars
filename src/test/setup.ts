@@ -14,12 +14,12 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const DB_URL_KEYS = ["POSTGRES_PRISMA_URL", "supabase_POSTGRES_URL_NON_POOLING"] as const;
+const DB_URL_KEYS = ["supabase_POSTGRES_PRISMA_URL", "supabase_POSTGRES_URL_NON_POOLING"] as const;
 
 for (const key of DB_URL_KEYS) {
   if (!process.env[key]) {
     throw new Error(
-      `${key} is not set. Tests need POSTGRES_PRISMA_URL and supabase_POSTGRES_URL_NON_POOLING — put them ` +
+      `${key} is not set. Tests need supabase_POSTGRES_PRISMA_URL and supabase_POSTGRES_URL_NON_POOLING — put them ` +
         "in .env, then run `npx prisma db push` once so the test schema exists."
     );
   }
