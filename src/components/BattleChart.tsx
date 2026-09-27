@@ -71,7 +71,7 @@ export default function BattleChart({
 
   return (
     <div className="panel">
-      <div className="panel-header">
+      <div className="panel-header flex-wrap">
         <span className="flex items-center gap-2">
           <span className="text-foreground">Battle chart</span>
           <span className="hidden sm:inline">· cumulative verified support</span>
@@ -143,7 +143,9 @@ export default function BattleChart({
             xLabels.map((i, n) => (
               <span
                 key={n}
-                className="absolute -bottom-6 font-mono text-[10px] text-muted whitespace-nowrap"
+                className={`absolute -bottom-6 font-mono text-[10px] text-muted whitespace-nowrap ${
+                  n === 0 || n === xLabels.length - 1 ? "" : "hidden sm:inline"
+                }`}
                 style={{
                   left: `${(i / (series.length - 1)) * 100}%`,
                   transform: n === 0 ? "none" : n === xLabels.length - 1 ? "translateX(-100%)" : "translateX(-50%)",
