@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCampaignBySlug } from "@/server/campaign";
-import { computeCampaignScore, computeMomentum, getTeamLeaderboard } from "@/server/scoring";
+import { computeCampaignScore, computeMomentum, computeScoreSeries, getTeamLeaderboard } from "@/server/scoring";
 import BattleView from "@/components/BattleView";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ export default async function Home() {
   const campaign = await getCampaignBySlug(fallback.slug);
   if (!campaign) return null;
 
-  const [score, teamA10m, teamB10m, leaderboard] = await Promise.all([
+  const [score, teamA10m, teamB10m, leaderboard, series] = await Promise.all([
     computeCampaignScore(campaign.id, campaign.teamAId!, campaign.teamBId!),
     computeMomentum(campaign.id, campaign.teamAId!, 10 * 60 * 1000),
     computeMomentum(campaign.id, campaign.teamBId!, 10 * 60 * 1000),
@@ -34,6 +34,7 @@ export default async function Home() {
       getTeamLeaderboard(campaign.id, campaign.teamAId!, 5),
       getTeamLeaderboard(campaign.id, campaign.teamBId!, 5),
     ]),
+    computeScoreSeries(campaign.id, campaign.teamAId!, campaign.teamBId!, campaign.startAt, campaign.endAt),
   ]);
 
   return (
@@ -55,6 +56,7 @@ export default async function Home() {
       initialScore={score}
       initialMomentum={{ teamA10m, teamB10m }}
       initialLeaderboard={{ teamA: leaderboard[0], teamB: leaderboard[1] }}
+      initialSeries={series}
     />
   );
 }

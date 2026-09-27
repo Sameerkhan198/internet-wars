@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/ibm-plex-sans";
+import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
+import TerminalHeader from "@/components/TerminalHeader";
 import Footer from "@/components/Footer";
 import DemoModeBanner from "@/components/DemoModeBanner";
 
@@ -25,6 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <DemoModeBanner />
+        <TerminalHeader />
         <div className="flex-1 flex flex-col">{children}</div>
         <Footer />
       </body>
