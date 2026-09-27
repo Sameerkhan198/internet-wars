@@ -5,7 +5,8 @@
 // Variable names match what Supabase's Vercel integration injects, so no
 // connection string ever has to be copied by hand:
 //   POSTGRES_PRISMA_URL       pooled (pgbouncer) connection, used at runtime
-//   POSTGRES_URL_NON_POOLING  direct connection, used by `prisma db push`
+//   supabase_POSTGRES_URL_NON_POOLING  direct connection, used by `prisma db push`
+//     (the integration prefixed this one; the name is case-sensitive)
 // Set the same two in .env locally and the local site mirrors the live one.
 
 generator client {
@@ -15,7 +16,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  directUrl = env("supabase_POSTGRES_URL_NON_POOLING")
 }
 
 enum CampaignStatus {
