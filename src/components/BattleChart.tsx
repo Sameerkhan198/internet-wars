@@ -77,8 +77,8 @@ export default function BattleChart({
           <span className="hidden sm:inline">· cumulative verified support</span>
         </span>
         <span className="flex items-center gap-3 normal-case tracking-normal">
-          <Legend color="var(--bull)" label={teamA.shortName} value={active ? formatINRCompact(active.a) : "—"} />
-          <Legend color="var(--bear)" label={teamB.shortName} value={active ? formatINRCompact(active.b) : "—"} />
+          <Legend color="var(--team-a)" label={teamA.shortName} value={active ? formatINRCompact(active.a) : "—"} />
+          <Legend color="var(--team-b)" label={teamB.shortName} value={active ? formatINRCompact(active.b) : "—"} />
         </span>
       </div>
 
@@ -103,25 +103,25 @@ export default function BattleChart({
           <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
             <defs>
               <linearGradient id="area-bull" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="var(--bull)" stopOpacity={0.28} />
-                <stop offset="100%" stopColor="var(--bull)" stopOpacity={0} />
+                <stop offset="0%" stopColor="var(--team-a)" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="var(--team-a)" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="area-bear" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="var(--bear)" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="var(--bear)" stopOpacity={0} />
+                <stop offset="0%" stopColor="var(--team-b)" stopOpacity={0.22} />
+                <stop offset="100%" stopColor="var(--team-b)" stopOpacity={0} />
               </linearGradient>
             </defs>
             <path d={areaB} fill="url(#area-bear)" />
             <path d={areaA} fill="url(#area-bull)" />
-            <path d={pathB} fill="none" stroke="var(--bear)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            <path d={pathA} fill="none" stroke="var(--bull)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+            <path d={pathB} fill="none" stroke="var(--team-b)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+            <path d={pathA} fill="none" stroke="var(--team-a)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
           </svg>
 
           {/* last-value price tags on the axis */}
           {last && (
             <>
-              <PriceTag value={last.a} top={tagTops.a} color="var(--bull)" />
-              <PriceTag value={last.b} top={tagTops.b} color="var(--bear)" />
+              <PriceTag value={last.a} top={tagTops.a} color="var(--team-a)" />
+              <PriceTag value={last.b} top={tagTops.b} color="var(--team-b)" />
             </>
           )}
 

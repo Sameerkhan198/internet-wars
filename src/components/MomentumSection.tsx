@@ -35,15 +35,15 @@ export default function MomentumSection({
 
       <div className="px-4 pb-4 mt-auto">
         <div className="flex h-1.5 rounded-sm overflow-hidden bg-white/5">
-          <div className="bg-bull transition-[width] duration-700" style={{ width: total === 0 ? "0%" : `${aShare}%` }} />
-          <div className="bg-bear transition-[width] duration-700" style={{ width: total === 0 ? "0%" : `${100 - aShare}%` }} />
+          <div className="bg-team-a transition-[width] duration-700" style={{ width: total === 0 ? "0%" : `${aShare}%` }} />
+          <div className="bg-team-b transition-[width] duration-700" style={{ width: total === 0 ? "0%" : `${100 - aShare}%` }} />
         </div>
         <p className="mt-3 font-mono text-xs text-muted">
           {total === 0 ? (
             "No verified support in the last 10 minutes."
           ) : leader ? (
             <>
-              <span style={{ color: leader.id === teamA.id ? "var(--bull)" : "var(--bear)" }} className="font-semibold">
+              <span style={{ color: leader.id === teamA.id ? "var(--team-a)" : "var(--team-b)" }} className="font-semibold">
                 {leader.shortName}
               </span>{" "}
               is gaining momentum
@@ -58,7 +58,7 @@ export default function MomentumSection({
 }
 
 function FlowCell({ label, amount, side }: { label: string; amount: number; side: "bull" | "bear" }) {
-  const color = side === "bull" ? "var(--bull)" : "var(--bear)";
+  const color = side === "bull" ? "var(--team-a)" : "var(--team-b)";
   return (
     <div className="p-4">
       <div className="label mb-1">{label}</div>

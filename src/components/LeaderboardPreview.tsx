@@ -42,8 +42,8 @@ function Book({
   max: number;
 }) {
   const isBull = side === "bull";
-  const color = isBull ? "var(--bull)" : "var(--bear)";
-  const depth = isBull ? "rgba(22,199,132,0.14)" : "rgba(246,70,93,0.14)";
+  const color = isBull ? "var(--team-a)" : "var(--team-b)";
+  const depth = isBull ? "color-mix(in srgb, var(--team-a) 14%, transparent)" : "color-mix(in srgb, var(--team-b) 14%, transparent)";
 
   return (
     <div className="min-w-0">

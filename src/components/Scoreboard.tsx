@@ -4,11 +4,13 @@ import type { ReactNode } from "react";
 import AnimatedNumber from "./AnimatedNumber";
 import Mascot from "./Mascot";
 import { formatINR, formatINRCompact } from "@/lib/money";
+import { sideVisual, type SideVisual } from "@/lib/sides";
 import type { CampaignScoreDTO, TeamDTO, TeamScoreDTO } from "@/lib/types";
 
 /**
- * The arena: BULL side (team A) vs BEAR side (team B), with the countdown in
- * the middle and a dominance bar underneath.
+ * The arena: side A (bull by default) vs side B (bear by default), with the
+ * countdown in the middle and a dominance bar underneath. Colours come from
+ * the --team-a/--team-b variables BattleView sets from each team's theme.
  */
 export default function Scoreboard({
   teamA,
@@ -29,7 +31,8 @@ export default function Scoreboard({
     <div className="w-full">
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 md:gap-0 items-stretch">
         <SidePanel
-          side="bull"
+          slot="a"
+          visual={sideVisual(teamA.accentTheme, "a")}
           team={teamA}
           score={score.teamA}
           leading={score.leaderTeamId === teamA.id}
@@ -41,7 +44,8 @@ export default function Scoreboard({
           {center}
         </div>
         <SidePanel
-          side="bear"
+          slot="b"
+          visual={sideVisual(teamB.accentTheme, "b")}
           team={teamB}
           score={score.teamB}
           leading={score.leaderTeamId === teamB.id}
@@ -56,24 +60,27 @@ export default function Scoreboard({
 }
 
 function SidePanel({
-  side,
+  slot,
+  visual,
   team,
   score,
   leading,
   onBack,
   canBack,
 }: {
-  side: "bull" | "bear";
+  slot: "a" | "b";
+  visual: SideVisual;
   team: TeamDTO;
   score: TeamScoreDTO;
   leading: boolean;
   onBack?: (team: TeamDTO) => void;
   canBack?: boolean;
 }) {
-  const isBull = side === "bull";
-  const color = isBull ? "var(--bull)" : "var(--bear)";
-  const glow = isBull ? "var(--bull-glow)" : "var(--bear-glow)";
-  const dim = isBull ? "var(--bull-dim)" : "var(--bear-dim)";
+  const isBull = slot === "a"; // layout: side A on the left, mirrored for B
+  const sideLabel = visual.icon === "bull" ? "Bull side" : visual.icon === "bear" ? "Bear side" : slot === "a" ? "Side A" : "Side B";
+  const color = isBull ? "var(--team-a)" : "var(--team-b)";
+  const glow = isBull ? "var(--team-a-glow)" : "var(--team-b-glow)";
+  const dim = isBull ? "var(--team-a-dim)" : "var(--team-b-dim)";
 
   return (
     <div
@@ -93,8 +100,8 @@ function SidePanel({
 
       <div className="panel-header" style={{ background: "transparent" }}>
         <span className="flex items-center gap-2" style={{ color }}>
-          <span aria-hidden="true">{isBull ? "▲" : "▼"}</span>
-          {isBull ? "Bull side" : "Bear side"}
+          <span aria-hidden="true">{visual.glyph}</span>
+          {sideLabel}
         </span>
         {leading ? (
           <span className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold text-black" style={{ background: color }}>
@@ -106,7 +113,7 @@ function SidePanel({
       </div>
 
       <div className={`relative flex items-center gap-4 p-4 sm:p-6 ${isBull ? "" : "flex-row-reverse text-right"}`}>
-        <Mascot side={side} className="breathe h-20 w-20 sm:h-28 sm:w-28 md:h-20 md:w-20 xl:h-32 xl:w-32 shrink-0" />
+        <Mascot icon={visual.icon} color={visual.color} label={team.shortName} className="breathe h-20 w-20 sm:h-28 sm:w-28 md:h-20 md:w-20 xl:h-32 xl:w-32 shrink-0" />
 
         <div className="min-w-0 flex-1">
           <div className="text-sm sm:text-base font-semibold text-foreground truncate">{team.name}</div>
@@ -114,7 +121,7 @@ function SidePanel({
 
           <div className="relative inline-block">
             {/* tick flash — remounts on every change of the total */}
-            <span key={score.total} className={`absolute -inset-x-1.5 -inset-y-0.5 rounded ${isBull ? "flash-bull" : "flash-bear"}`} />
+            <span key={score.total} className={`absolute -inset-x-1.5 -inset-y-0.5 rounded ${isBull ? "flash-a" : "flash-b"}`} />
             <AnimatedNumber
               value={score.total}
               format={(n) => formatINR(n)}
@@ -140,7 +147,7 @@ function SidePanel({
             className="group w-full min-h-11 rounded font-mono text-sm font-bold uppercase tracking-wider text-black transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] cursor-pointer"
             style={{ background: color, boxShadow: `0 0 24px -6px ${glow}` }}
           >
-            {isBull ? "▲" : "▼"} Back {team.shortName}
+            {visual.glyph} Back {team.shortName}
           </button>
         </div>
       )}
@@ -162,7 +169,7 @@ function DominanceBar({ teamA, teamB, score }: { teamA: TeamDTO; teamB: TeamDTO;
             <span className="text-muted">Dead even — every rupee counts</span>
           ) : (
             <>
-              <span style={{ color: aLeading ? "var(--bull)" : "var(--bear)" }} className="font-semibold">
+              <span style={{ color: aLeading ? "var(--team-a)" : "var(--team-b)" }} className="font-semibold">
                 {aLeading ? teamA.shortName : teamB.shortName}
               </span>
               <span className="text-muted"> leads by </span>
@@ -173,8 +180,8 @@ function DominanceBar({ teamA, teamB, score }: { teamA: TeamDTO; teamB: TeamDTO;
       </div>
       <div className="px-4 py-3">
         <div className="flex justify-between font-mono text-xs mb-1.5 tabular-nums">
-          <span className="text-bull font-semibold">▲ {teamA.shortName} {empty ? "—" : `${score.teamA.percentage.toFixed(1)}%`}</span>
-          <span className="text-bear font-semibold">{empty ? "—" : `${score.teamB.percentage.toFixed(1)}%`} {teamB.shortName} ▼</span>
+          <span className="text-team-a font-semibold">▲ {teamA.shortName} {empty ? "—" : `${score.teamA.percentage.toFixed(1)}%`}</span>
+          <span className="text-team-b font-semibold">{empty ? "—" : `${score.teamB.percentage.toFixed(1)}%`} {teamB.shortName} ▼</span>
         </div>
         <div
           className="sweep relative h-3 rounded-sm overflow-hidden bg-white/5"
@@ -186,11 +193,11 @@ function DominanceBar({ teamA, teamB, score }: { teamA: TeamDTO; teamB: TeamDTO;
         >
           <div
             className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
-            style={{ width: `${aPct}%`, background: "linear-gradient(90deg, rgba(22,199,132,0.55), var(--bull))" }}
+            style={{ width: `${aPct}%`, background: "linear-gradient(90deg, color-mix(in srgb, var(--team-a) 55%, transparent), var(--team-a))" }}
           />
           <div
             className="absolute inset-y-0 right-0 transition-[width] duration-700 ease-out"
-            style={{ width: `${100 - aPct}%`, background: "linear-gradient(270deg, rgba(246,70,93,0.55), var(--bear))" }}
+            style={{ width: `${100 - aPct}%`, background: "linear-gradient(270deg, color-mix(in srgb, var(--team-b) 55%, transparent), var(--team-b))" }}
           />
           <div
             className="absolute inset-y-0 w-0.5 bg-foreground transition-[left] duration-700 ease-out"

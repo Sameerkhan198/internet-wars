@@ -160,16 +160,16 @@ body {
 }
 
 /* Tick flash: the classic terminal cue that a value just changed. */
-@keyframes flash-bull {
-  0% { background-color: var(--bull-glow); }
+@keyframes flash-a {
+  0% { background-color: var(--team-a-glow); }
   100% { background-color: transparent; }
 }
-@keyframes flash-bear {
-  0% { background-color: var(--bear-glow); }
+@keyframes flash-b {
+  0% { background-color: var(--team-b-glow); }
   100% { background-color: transparent; }
 }
-.flash-bull { animation: flash-bull 0.9s ease-out; }
-.flash-bear { animation: flash-bear 0.9s ease-out; }
+.flash-a { animation: flash-a 0.9s ease-out; }
+.flash-b { animation: flash-b 0.9s ease-out; }
 
 /* Ticker tape — content is duplicated once, so -50% loops seamlessly. */
 @keyframes ticker {
@@ -224,8 +224,8 @@ body {
   .live-dot,
   .number-pop,
   .slide-in,
-  .flash-bull,
-  .flash-bear,
+  .flash-a,
+  .flash-b,
   .ticker-track,
   .sweep::after,
   .breathe {

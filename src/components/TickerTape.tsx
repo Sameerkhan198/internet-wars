@@ -37,7 +37,7 @@ export default function TickerTape({
           <span className="text-muted uppercase tracking-wider">{it.label}</span>
           <span
             className="tabular-nums font-semibold"
-            style={{ color: it.tone === "bull" ? "var(--bull)" : it.tone === "bear" ? "var(--bear)" : "var(--foreground)" }}
+            style={{ color: it.tone === "bull" ? "var(--team-a)" : it.tone === "bear" ? "var(--team-b)" : "var(--foreground)" }}
           >
             {it.value}
           </span>
