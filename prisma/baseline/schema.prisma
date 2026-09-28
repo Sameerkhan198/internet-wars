@@ -1,3 +1,7 @@
+// FROZEN copy of prisma/schema.prisma as of migration 0_init (= production at
+// commit 4b77d3b). Used only by scripts/migrate-deploy.mjs to verify an
+// un-baselined database matches 0_init exactly before marking it applied.
+// Never edit — new schema changes go through prisma/migrations.
 // Internet Wars — data model.
 // Postgres in both local dev and production: serverless hosts have no
 // persistent disk, so SQLite cannot work once deployed.
@@ -5,7 +9,7 @@
 // Variable names match what Supabase's Vercel integration injects, so no
 // connection string ever has to be copied by hand:
 //   supabase_POSTGRES_PRISMA_URL       pooled (pgbouncer) connection, used at runtime
-//   supabase_POSTGRES_URL_NON_POOLING  direct connection, used by migrations
+//   supabase_POSTGRES_URL_NON_POOLING  direct connection, used by `prisma db push`
 //     (the integration prefixes both with "supabase_"; names are case-sensitive)
 // Set the same two in .env locally and the local site mirrors the live one.
 
