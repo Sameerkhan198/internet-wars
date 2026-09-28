@@ -1,11 +1,20 @@
 import { prisma } from "@/lib/prisma";
 
 export async function getCampaignBySlug(slug: string) {
-  const campaign = await prisma.campaign.findUnique({
+  let campaign = await prisma.campaign.findUnique({
     where: { slug },
     include: { teamA: true, teamB: true },
   });
   if (!campaign) return null;
+
+  // Server-controlled start: a SCHEDULED battle whose start time has passed
+  // opens on read (only if no other battle is active — see campaignAdmin).
+  if (campaign.status === "SCHEDULED" && campaign.startAt <= new Date()) {
+    const { maybeActivateScheduled } = await import("@/server/campaignAdmin");
+    if (await maybeActivateScheduled(campaign.id)) {
+      campaign = await prisma.campaign.findUniqueOrThrow({ where: { slug }, include: { teamA: true, teamB: true } });
+    }
+  }
   return maybeFinalize(campaign);
 }
 
