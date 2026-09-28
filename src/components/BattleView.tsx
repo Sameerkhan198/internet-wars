@@ -7,6 +7,9 @@ import MomentumSection from "./MomentumSection";
 import ActivityFeed from "./ActivityFeed";
 import LeaderboardPreview from "./LeaderboardPreview";
 import ContributionModal from "./ContributionModal";
+import TickerTape from "./TickerTape";
+import BattleChart from "./BattleChart";
+import Mascot from "./Mascot";
 import { useCampaignPolling } from "@/hooks/useCampaignPolling";
 import { formatINRCompact } from "@/lib/money";
 import type {
@@ -14,6 +17,7 @@ import type {
   CampaignDTO,
   CampaignScoreDTO,
   LeaderboardRow,
+  ScorePointDTO,
   TeamDTO,
 } from "@/lib/types";
 
@@ -26,6 +30,7 @@ export default function BattleView({
   initialScore,
   initialMomentum,
   initialLeaderboard,
+  initialSeries,
 }: {
   campaign: CampaignDTO;
   teamA: TeamDTO;
@@ -33,16 +38,29 @@ export default function BattleView({
   initialScore: CampaignScoreDTO;
   initialMomentum: { teamA10m: number; teamB10m: number };
   initialLeaderboard: { teamA: LeaderboardRow[]; teamB: LeaderboardRow[] };
+  initialSeries: ScorePointDTO[];
 }) {
   const [score, setScore] = useState(initialScore);
   const [momentum, setMomentum] = useState(initialMomentum);
+  const [series, setSeries] = useState(initialSeries);
+  const [lastTick, setLastTick] = useState<Date | null>(null);
   const [events, setEvents] = useState<ActivityEventDTO[]>([]);
   const [activeTeam, setActiveTeam] = useState<TeamDTO | null>(null);
 
-  const onUpdate = useCallback((data: { score: CampaignScoreDTO; momentum: { teamA10m: number; teamB10m: number } }) => {
-    setScore(data.score);
-    setMomentum(data.momentum);
-  }, []);
+  const onUpdate = useCallback(
+    (data: { score: CampaignScoreDTO; momentum: { teamA10m: number; teamB10m: number } }) => {
+      setScore(data.score);
+      setMomentum(data.momentum);
+      setLastTick(new Date());
+      // Extend the chart with the live total whenever it moves.
+      setSeries((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.a === data.score.teamA.total && last.b === data.score.teamB.total) return prev;
+        return [...prev, { t: new Date().toISOString(), a: data.score.teamA.total, b: data.score.teamB.total }];
+      });
+    },
+    []
+  );
 
   const onActivity = useCallback((newEvents: ActivityEventDTO[]) => {
     setEvents((prev) => [...newEvents, ...prev].slice(0, 30));
@@ -53,59 +71,73 @@ export default function BattleView({
   const isLive = campaign.status === "LIVE";
 
   return (
-    <main className="flex-1 bg-grid">
-      <section className="mx-auto max-w-5xl px-4 sm:px-6 pt-10 sm:pt-16 pb-8 text-center">
-        <div className="flex items-center justify-center gap-2 mb-3">
-          {isLive && (
-            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-red-400">
-              <span className="live-dot h-2 w-2 rounded-full bg-red-500" /> Live
-            </span>
-          )}
-        </div>
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight">INTERNET WARS</h1>
-        <p className="mt-2 text-base sm:text-xl font-bold text-muted">
-          Indian Stock Market 🆚 Forex Market
-        </p>
-        <p className="mt-4 text-lg sm:text-2xl font-semibold">Which community will take #1?</p>
-        <p className="mt-1 text-sm sm:text-base text-muted">Pick your side. Support your community. Move the scoreboard.</p>
-      </section>
+    <main className="flex-1">
+      <TickerTape teamA={teamA} teamB={teamB} score={score} momentum={momentum} />
 
-      <section className="mx-auto max-w-5xl px-4 sm:px-6">
-        <Scoreboard teamA={teamA} teamB={teamB} score={score} />
-
-        <div className="mt-8">
-          <Countdown endAt={campaign.endAt} status={campaign.status} />
-        </div>
-
-        {isLive && (
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 sm:max-w-md sm:mx-auto pb-24 sm:pb-0">
-            <CtaButton team={teamA} accentVar="--team-a" onClick={() => setActiveTeam(teamA)} />
-            <CtaButton team={teamB} accentVar="--team-b" onClick={() => setActiveTeam(teamB)} />
+      <div className="bg-terminal">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 sm:pt-12 pb-6">
+          {/* instrument header */}
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <StatusPill status={campaign.status} />
+                <span className="label">Internet War #001</span>
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight">
+                <span className="text-bull">{teamA.name}</span>
+                <span className="text-muted font-normal mx-2 sm:mx-3">/</span>
+                <span className="text-bear">{teamB.name}</span>
+              </h1>
+              <p className="mt-1.5 text-sm text-muted">
+                Pick your side. Support your community. Move the scoreboard.
+              </p>
+            </div>
+            <dl className="grid grid-cols-3 gap-x-6 gap-y-1 font-mono text-xs">
+              <Stat label="Total support" value={formatINRCompact(score.combinedTotal)} />
+              <Stat
+                label="Supporters"
+                value={(score.teamA.supporterCount + score.teamB.supporterCount).toLocaleString("en-IN")}
+              />
+              <Stat
+                label="Last tick"
+                value={
+                  lastTick
+                    ? lastTick.toLocaleTimeString("en-IN", { hour12: false, timeZone: "Asia/Kolkata" })
+                    : "—"
+                }
+              />
+            </dl>
           </div>
-        )}
-        <p className="text-center text-xs text-muted mt-3 mb-4">Choose your side and support the community.</p>
 
-        {!isLive && campaign.status === "ENDED" && (
-          <FinalResult campaign={campaign} teamA={teamA} teamB={teamB} score={score} />
-        )}
+          <Scoreboard
+            teamA={teamA}
+            teamB={teamB}
+            score={score}
+            center={<Countdown endAt={campaign.endAt} status={campaign.status} />}
+            onBack={setActiveTeam}
+            canBack={isLive}
+          />
+
+          {!isLive && campaign.status === "ENDED" && (
+            <FinalResult campaign={campaign} teamA={teamA} teamB={teamB} score={score} />
+          )}
+        </section>
+      </div>
+
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 pb-4">
+        <BattleChart series={series} teamA={teamA} teamB={teamB} />
       </section>
 
-      <section className="mx-auto max-w-5xl px-4 sm:px-6 mt-14">
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 pb-16 sm:pb-12 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <MomentumSection teamA={teamA} teamB={teamB} momentum={momentum} />
-      </section>
-
-      <section className="mx-auto max-w-5xl px-4 sm:px-6 mt-14">
         <LeaderboardPreview teamA={teamA} teamB={teamB} leaderboard={initialLeaderboard} />
-      </section>
-
-      <section className="mx-auto max-w-5xl px-4 sm:px-6 mt-14 pb-16">
         <ActivityFeed events={events} />
       </section>
 
       {isLive && (
-        <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-2 gap-2 p-3 bg-background/95 backdrop-blur border-t border-border">
-          <CtaButton team={teamA} accentVar="--team-a" onClick={() => setActiveTeam(teamA)} compact />
-          <CtaButton team={teamB} accentVar="--team-b" onClick={() => setActiveTeam(teamB)} compact />
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-2 gap-2 p-3 bg-background/95 backdrop-blur border-t border-border">
+          <MobileCta team={teamA} side="bull" onClick={() => setActiveTeam(teamA)} />
+          <MobileCta team={teamB} side="bear" onClick={() => setActiveTeam(teamB)} />
         </div>
       )}
 
@@ -121,26 +153,42 @@ export default function BattleView({
   );
 }
 
-function CtaButton({
-  team,
-  accentVar,
-  onClick,
-  compact,
-}: {
-  team: TeamDTO;
-  accentVar: string;
-  onClick: () => void;
-  compact?: boolean;
-}) {
+function StatusPill({ status }: { status: string }) {
+  const map: Record<string, { text: string; color: string }> = {
+    LIVE: { text: "Live", color: "var(--bear)" },
+    PAUSED: { text: "Paused", color: "var(--signal)" },
+    ENDED: { text: "Closed", color: "var(--muted)" },
+  };
+  const s = map[status] ?? { text: status, color: "var(--muted)" };
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest"
+      style={{ color: s.color, borderColor: s.color }}
+    >
+      {status === "LIVE" && <span className="live-dot h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />}
+      {s.text}
+    </span>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="label !text-[10px]">{label}</dt>
+      <dd className="text-sm text-foreground tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+function MobileCta({ team, side, onClick }: { team: TeamDTO; side: "bull" | "bear"; onClick: () => void }) {
+  const color = side === "bull" ? "var(--bull)" : "var(--bear)";
   return (
     <button
       onClick={onClick}
-      className={`rounded-xl font-black uppercase tracking-wide transition-transform active:scale-95 ${
-        compact ? "py-3 text-sm" : "py-4 text-base sm:text-lg"
-      }`}
-      style={{ background: `var(${accentVar})`, color: "#08090c" }}
+      className="min-h-11 rounded font-mono text-sm font-bold uppercase tracking-wider text-black active:scale-[0.98] transition-transform"
+      style={{ background: color }}
     >
-      Back {team.shortName}
+      {side === "bull" ? "▲" : "▼"} Back {team.shortName}
     </button>
   );
 }
@@ -157,24 +205,35 @@ function FinalResult({
   score: CampaignScoreDTO;
 }) {
   const winner = campaign.winnerTeamId === teamA.id ? teamA : campaign.winnerTeamId === teamB.id ? teamB : null;
+  const winnerSide = winner?.id === teamA.id ? "bull" : winner ? "bear" : null;
   return (
-    <div className="mt-10 rounded-2xl border border-border p-8 text-center bg-background-elevated/60">
-      <div className="text-sm text-muted uppercase tracking-widest mb-2">🏆 Internet War #001 — Final Result</div>
-      {winner ? (
-        <div className="text-2xl sm:text-3xl font-black mb-6">{winner.name.toUpperCase()} WON</div>
-      ) : (
-        <div className="text-2xl sm:text-3xl font-black mb-6">IT&apos;S A TIE</div>
-      )}
-      <div className="grid grid-cols-2 gap-6 max-w-md mx-auto text-left">
-        <div>
-          <div className="text-xs text-muted">{teamA.shortName}</div>
-          <div className="numeric text-xl font-bold">{formatINRCompact(score.teamA.total)}</div>
-          <div className="text-xs text-muted">{score.teamA.supporterCount.toLocaleString("en-IN")} supporters</div>
-        </div>
-        <div>
-          <div className="text-xs text-muted">{teamB.shortName}</div>
-          <div className="numeric text-xl font-bold">{formatINRCompact(score.teamB.total)}</div>
-          <div className="text-xs text-muted">{score.teamB.supporterCount.toLocaleString("en-IN")} supporters</div>
+    <div className="panel mt-4">
+      <div className="panel-header">
+        <span className="text-foreground">Final result</span>
+        <span>Internet War #001</span>
+      </div>
+      <div className="p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
+        {winnerSide && <Mascot side={winnerSide} className="h-24 w-24 shrink-0" />}
+        <div className="flex-1 text-center sm:text-left">
+          <div className="label mb-1">Result</div>
+          <div
+            className="text-2xl sm:text-3xl font-bold mb-4"
+            style={{ color: winnerSide === "bull" ? "var(--bull)" : winnerSide === "bear" ? "var(--bear)" : undefined }}
+          >
+            {winner ? `${winner.name} took #1` : "It's a tie"}
+          </div>
+          <div className="grid grid-cols-2 gap-6 max-w-md font-mono text-sm">
+            <div>
+              <div className="label text-bull">{teamA.shortName}</div>
+              <div className="text-lg font-semibold tabular-nums">{formatINRCompact(score.teamA.total)}</div>
+              <div className="text-xs text-muted">{score.teamA.supporterCount.toLocaleString("en-IN")} supporters</div>
+            </div>
+            <div>
+              <div className="label text-bear">{teamB.shortName}</div>
+              <div className="text-lg font-semibold tabular-nums">{formatINRCompact(score.teamB.total)}</div>
+              <div className="text-xs text-muted">{score.teamB.supporterCount.toLocaleString("en-IN")} supporters</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

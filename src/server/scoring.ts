@@ -80,6 +80,53 @@ export async function computeMomentum(campaignId: string, teamId: string, sinceM
   return result._sum.amount ?? 0;
 }
 
+export type ScorePoint = {
+  /** Bucket end, ISO string. */
+  t: string;
+  /** Cumulative verified totals (paise) at that instant. */
+  a: number;
+  b: number;
+};
+
+/**
+ * Cumulative verified totals per team over the campaign, in fixed time
+ * buckets — the data behind the battle chart. Same ledger rule as every other
+ * score: only SUCCESS rows, ordered by when they were verified.
+ */
+export async function computeScoreSeries(
+  campaignId: string,
+  teamAId: string,
+  teamBId: string,
+  startAt: Date,
+  endAt: Date,
+  buckets = 60
+): Promise<ScorePoint[]> {
+  const rows = await prisma.contribution.findMany({
+    where: { campaignId, status: "SUCCESS", verifiedAt: { not: null } },
+    select: { teamId: true, amount: true, verifiedAt: true },
+    orderBy: { verifiedAt: "asc" },
+  });
+
+  const start = startAt.getTime();
+  const end = Math.max(start + 1, Math.min(Date.now(), endAt.getTime()));
+  const step = (end - start) / buckets;
+
+  const points: ScorePoint[] = [{ t: new Date(start).toISOString(), a: 0, b: 0 }];
+  let a = 0;
+  let b = 0;
+  let i = 0;
+  for (let k = 1; k <= buckets; k++) {
+    const bucketEnd = start + step * k;
+    while (i < rows.length && rows[i].verifiedAt!.getTime() <= bucketEnd) {
+      if (rows[i].teamId === teamAId) a += rows[i].amount;
+      else if (rows[i].teamId === teamBId) b += rows[i].amount;
+      i++;
+    }
+    points.push({ t: new Date(bucketEnd).toISOString(), a, b });
+  }
+  return points;
+}
+
 export async function getTeamLeaderboard(campaignId: string, teamId: string, limit = 10) {
   const rows = await prisma.contribution.groupBy({
     by: ["userId", "displayName", "isAnonymous"],

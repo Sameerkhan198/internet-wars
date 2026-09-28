@@ -46,3 +46,9 @@ export type ActivityEventDTO = {
   message: string;
   createdAt: string;
 };
+
+export type ScorePointDTO = {
+  t: string;
+  a: number;
+  b: number;
+};

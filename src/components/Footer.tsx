@@ -14,10 +14,10 @@ const links = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-border bg-background-elevated/40 mt-16">
-      <div className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-6">
+    <footer className="border-t border-border bg-panel">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 pb-24 md:pb-10 flex flex-col gap-6">
         <div>
-          <div className="text-lg font-black tracking-tight">INTERNET WARS</div>
+          <div className="font-mono text-sm font-bold tracking-tight">INTERNET<span className="text-muted">/</span>WARS</div>
           <div className="text-sm text-muted">Pick a side. Move the score.</div>
         </div>
         <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">

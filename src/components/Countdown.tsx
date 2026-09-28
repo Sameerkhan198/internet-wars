@@ -31,43 +31,44 @@ export default function Countdown({ endAt, status }: { endAt: string; status: st
   }, [endAt]);
 
   if (status === "ENDED" || remaining?.ended) {
-    return (
-      <div className="text-center">
-        <div className="text-xs uppercase tracking-widest text-muted mb-1">Battle Status</div>
-        <div className="text-lg font-bold text-danger">BATTLE ENDED</div>
-      </div>
-    );
+    return <Status label="Battle ended" color="var(--bear)" />;
   }
 
   if (status === "PAUSED") {
-    return (
-      <div className="text-center">
-        <div className="text-xs uppercase tracking-widest text-muted mb-1">Battle Status</div>
-        <div className="text-lg font-bold text-amber-400">TEMPORARILY PAUSED</div>
-      </div>
-    );
+    return <Status label="Paused" color="var(--signal)" />;
   }
 
   const unit = (value: number | undefined, label: string) => (
-    <div className="flex flex-col items-center min-w-[56px] sm:min-w-[68px]">
-      <div className="numeric text-2xl sm:text-4xl font-black tabular-nums">
+    <div className="flex flex-col items-center w-10 sm:w-11">
+      <div className="numeric text-xl sm:text-2xl font-semibold tabular-nums">
         {value === undefined ? "--" : String(value).padStart(2, "0")}
       </div>
-      <div className="text-[10px] sm:text-xs uppercase tracking-widest text-muted mt-1">{label}</div>
+      <div className="label !text-[9px] mt-0.5">{label}</div>
     </div>
   );
 
   return (
-    <div className="text-center">
-      <div className="text-xs uppercase tracking-widest text-muted mb-2">Time Remaining</div>
-      <div className="flex items-center justify-center gap-2 sm:gap-4">
-        {unit(remaining?.days, "Days")}
-        <span className="text-xl text-muted -mt-4">:</span>
-        {unit(remaining?.hours, "Hrs")}
-        <span className="text-xl text-muted -mt-4">:</span>
-        {unit(remaining?.minutes, "Min")}
-        <span className="text-xl text-muted -mt-4">:</span>
-        {unit(remaining?.seconds, "Sec")}
+    <div className="text-center rounded border border-border bg-panel px-3 py-2">
+      <div className="label mb-1.5">Closes in</div>
+      <div className="flex items-start justify-center">
+        {unit(remaining?.days, "D")}
+        <span className="numeric text-lg text-muted">:</span>
+        {unit(remaining?.hours, "H")}
+        <span className="numeric text-lg text-muted">:</span>
+        {unit(remaining?.minutes, "M")}
+        <span className="numeric text-lg text-muted">:</span>
+        {unit(remaining?.seconds, "S")}
+      </div>
+    </div>
+  );
+}
+
+function Status({ label, color }: { label: string; color: string }) {
+  return (
+    <div className="text-center rounded border border-border bg-panel px-4 py-2">
+      <div className="label mb-1">Status</div>
+      <div className="font-mono text-sm font-bold uppercase tracking-wider" style={{ color }}>
+        {label}
       </div>
     </div>
   );

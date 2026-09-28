@@ -3,6 +3,7 @@
 import { formatINRCompact } from "@/lib/money";
 import type { TeamDTO } from "@/lib/types";
 
+/** Momentum: verified support in the last 10 minutes, per side. */
 export default function MomentumSection({
   teamA,
   teamB,
@@ -12,64 +13,56 @@ export default function MomentumSection({
   teamB: TeamDTO;
   momentum: { teamA10m: number; teamB10m: number };
 }) {
+  const total = momentum.teamA10m + momentum.teamB10m;
+  const aShare = total === 0 ? 50 : (momentum.teamA10m / total) * 100;
   const leader =
-    momentum.teamA10m === momentum.teamB10m
-      ? null
-      : momentum.teamA10m > momentum.teamB10m
-        ? teamA
-        : teamB;
+    momentum.teamA10m === momentum.teamB10m ? null : momentum.teamA10m > momentum.teamB10m ? teamA : teamB;
 
   return (
-    <section className="w-full">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="live-dot inline-block h-2 w-2 rounded-full bg-red-500" />
-        <h2 className="text-sm font-bold uppercase tracking-widest text-muted">Live Momentum</h2>
+    <section className="panel h-full flex flex-col">
+      <div className="panel-header">
+        <span className="flex items-center gap-2 text-foreground">
+          <span className="live-dot h-1.5 w-1.5 rounded-full bg-signal" />
+          Momentum
+        </span>
+        <span>Last 10 min</span>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:gap-6">
-        <MomentumCard
-          label={teamA.shortName}
-          amount={momentum.teamA10m}
-          accentVar="--team-a"
-          highlighted={leader?.id === teamA.id}
-        />
-        <MomentumCard
-          label={teamB.shortName}
-          amount={momentum.teamB10m}
-          accentVar="--team-b"
-          highlighted={leader?.id === teamB.id}
-        />
+
+      <div className="grid grid-cols-2 divide-x divide-border">
+        <FlowCell label={teamA.shortName} amount={momentum.teamA10m} side="bull" />
+        <FlowCell label={teamB.shortName} amount={momentum.teamB10m} side="bear" />
       </div>
-      {leader && (momentum.teamA10m > 0 || momentum.teamB10m > 0) && (
-        <p className="text-center text-sm mt-4 font-semibold">
-          🔥 <span style={{ color: `var(${leader.id === teamA.id ? "--team-a" : "--team-b"})` }}>{leader.shortName}</span>{" "}
-          <span className="text-muted font-normal">is gaining momentum</span>
+
+      <div className="px-4 pb-4 mt-auto">
+        <div className="flex h-1.5 rounded-sm overflow-hidden bg-white/5">
+          <div className="bg-bull transition-[width] duration-700" style={{ width: total === 0 ? "0%" : `${aShare}%` }} />
+          <div className="bg-bear transition-[width] duration-700" style={{ width: total === 0 ? "0%" : `${100 - aShare}%` }} />
+        </div>
+        <p className="mt-3 font-mono text-xs text-muted">
+          {total === 0 ? (
+            "No verified support in the last 10 minutes."
+          ) : leader ? (
+            <>
+              <span style={{ color: leader.id === teamA.id ? "var(--bull)" : "var(--bear)" }} className="font-semibold">
+                {leader.shortName}
+              </span>{" "}
+              is gaining momentum
+            </>
+          ) : (
+            "Momentum is balanced."
+          )}
         </p>
-      )}
+      </div>
     </section>
   );
 }
 
-function MomentumCard({
-  label,
-  amount,
-  accentVar,
-  highlighted,
-}: {
-  label: string;
-  amount: number;
-  accentVar: string;
-  highlighted: boolean;
-}) {
+function FlowCell({ label, amount, side }: { label: string; amount: number; side: "bull" | "bear" }) {
+  const color = side === "bull" ? "var(--bull)" : "var(--bear)";
   return (
-    <div
-      className="rounded-xl border p-4 transition-colors duration-500"
-      style={{
-        borderColor: highlighted ? `var(${accentVar})` : "var(--border)",
-        background: "var(--background-elevated)",
-      }}
-    >
-      <div className="text-xs uppercase tracking-wider text-muted mb-1">{label} · last 10 min</div>
-      <div className="numeric text-xl sm:text-2xl font-black">
+    <div className="p-4">
+      <div className="label mb-1">{label}</div>
+      <div className="numeric text-2xl font-semibold" style={{ color: amount > 0 ? color : "var(--foreground)" }}>
         +{formatINRCompact(amount)}
       </div>
     </div>

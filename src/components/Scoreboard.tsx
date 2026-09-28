@@ -1,125 +1,204 @@
 "use client";
 
+import type { ReactNode } from "react";
 import AnimatedNumber from "./AnimatedNumber";
+import Mascot from "./Mascot";
 import { formatINR, formatINRCompact } from "@/lib/money";
-import type { CampaignScoreDTO, TeamDTO } from "@/lib/types";
+import type { CampaignScoreDTO, TeamDTO, TeamScoreDTO } from "@/lib/types";
 
+/**
+ * The arena: BULL side (team A) vs BEAR side (team B), with the countdown in
+ * the middle and a dominance bar underneath.
+ */
 export default function Scoreboard({
   teamA,
   teamB,
   score,
+  center,
+  onBack,
+  canBack,
 }: {
   teamA: TeamDTO;
   teamB: TeamDTO;
   score: CampaignScoreDTO;
+  center?: ReactNode;
+  onBack?: (team: TeamDTO) => void;
+  canBack?: boolean;
 }) {
-  const aLeading = score.leaderTeamId === teamA.id;
-  const bLeading = score.leaderTeamId === teamB.id;
-  const aPct = score.teamA.percentage;
-
   return (
     <div className="w-full">
-      <div className="grid grid-cols-2 gap-3 sm:gap-8">
-        <TeamPanel
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 md:gap-0 items-stretch">
+        <SidePanel
+          side="bull"
           team={teamA}
           score={score.teamA}
-          leading={aLeading}
-          accentVar="--team-a"
-          glowVar="--team-a-glow"
-          align="left"
+          leading={score.leaderTeamId === teamA.id}
+          onBack={onBack}
+          canBack={canBack}
         />
-        <TeamPanel
+        <div className="flex md:flex-col items-center justify-center gap-4 px-2 md:px-6 py-2">
+          <span className="font-mono text-xs font-bold tracking-[0.3em] text-muted md:mb-2">VS</span>
+          {center}
+        </div>
+        <SidePanel
+          side="bear"
           team={teamB}
           score={score.teamB}
-          leading={bLeading}
-          accentVar="--team-b"
-          glowVar="--team-b-glow"
-          align="right"
+          leading={score.leaderTeamId === teamB.id}
+          onBack={onBack}
+          canBack={canBack}
         />
       </div>
 
-      <div className="relative mt-6 h-3 sm:h-4 rounded-full overflow-hidden bg-white/5 border border-border">
-        <div
-          className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
-          style={{ width: `${aPct}%`, background: "var(--team-a)" }}
-        />
-        <div
-          className="absolute inset-y-0 right-0 transition-[width] duration-700 ease-out"
-          style={{ width: `${100 - aPct}%`, background: "var(--team-b)" }}
-        />
-        <div
-          className="absolute inset-y-0 w-0.5 bg-background transition-[left] duration-700 ease-out"
-          style={{ left: `${aPct}%` }}
-        />
-      </div>
-
-      <div className="mt-4 text-center">
-        {score.differenceAmount === 0 ? (
-          <span className="text-sm text-muted font-medium">DEAD EVEN — every rupee matters</span>
-        ) : (
-          <span className="text-sm font-bold">
-            <span style={{ color: `var(${aLeading ? "--team-a" : "--team-b"})` }}>
-              {aLeading ? teamA.shortName : teamB.shortName}
-            </span>
-            <span className="text-muted font-medium"> LEADING BY </span>
-            <span className="numeric">{formatINRCompact(score.differenceAmount)}</span>
-          </span>
-        )}
-      </div>
+      <DominanceBar teamA={teamA} teamB={teamB} score={score} />
     </div>
   );
 }
 
-function TeamPanel({
+function SidePanel({
+  side,
   team,
   score,
   leading,
-  accentVar,
-  glowVar,
-  align,
+  onBack,
+  canBack,
 }: {
+  side: "bull" | "bear";
   team: TeamDTO;
-  score: { total: number; supporterCount: number; percentage: number };
+  score: TeamScoreDTO;
   leading: boolean;
-  accentVar: string;
-  glowVar: string;
-  align: "left" | "right";
+  onBack?: (team: TeamDTO) => void;
+  canBack?: boolean;
 }) {
+  const isBull = side === "bull";
+  const color = isBull ? "var(--bull)" : "var(--bear)";
+  const glow = isBull ? "var(--bull-glow)" : "var(--bear-glow)";
+  const dim = isBull ? "var(--bull-dim)" : "var(--bear-dim)";
+
   return (
     <div
-      className={`rounded-2xl border p-4 sm:p-6 transition-shadow duration-500 ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
+      className="panel relative isolate flex flex-col transition-shadow duration-500"
       style={{
-        borderColor: leading ? `var(${accentVar})` : "var(--border)",
-        boxShadow: leading ? `0 0 40px ${`var(${glowVar})`}` : "none",
-        background: "var(--background-elevated)",
+        borderColor: leading ? color : undefined,
+        boxShadow: leading ? `0 0 0 1px ${color}, 0 0 48px -8px ${glow}` : undefined,
       }}
     >
+      {/* side glow */}
       <div
-        className="text-xs sm:text-sm font-bold tracking-widest uppercase mb-2"
-        style={{ color: `var(${accentVar})` }}
-      >
-        {team.shortName}
-      </div>
-      <AnimatedNumber
-        value={score.total}
-        format={(n) => formatINR(n)}
-        className="block text-2xl sm:text-4xl md:text-5xl font-black leading-none"
+        className="absolute inset-0 -z-10"
+        style={{
+          background: `radial-gradient(90% 70% at ${isBull ? "0% 0%" : "100% 0%"}, ${dim}, transparent 70%)`,
+        }}
       />
-      <div className="mt-2 flex items-baseline gap-2 justify-start sm:gap-3" style={{ justifyContent: align === "right" ? "flex-end" : "flex-start" }}>
-        <span className="numeric text-lg sm:text-xl font-bold text-muted">{score.percentage.toFixed(1)}%</span>
-        {leading && (
-          <span
-            className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full"
-            style={{ background: `var(${accentVar})`, color: "#08090c" }}
-          >
+
+      <div className="panel-header" style={{ background: "transparent" }}>
+        <span className="flex items-center gap-2" style={{ color }}>
+          <span aria-hidden="true">{isBull ? "▲" : "▼"}</span>
+          {isBull ? "Bull side" : "Bear side"}
+        </span>
+        {leading ? (
+          <span className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold text-black" style={{ background: color }}>
             LEADING
           </span>
+        ) : (
+          <span>Trailing</span>
         )}
       </div>
-      <div className="text-xs sm:text-sm text-muted mt-1">
-        {score.supporterCount.toLocaleString("en-IN")} supporters
+
+      <div className={`relative flex items-center gap-4 p-4 sm:p-6 ${isBull ? "" : "flex-row-reverse text-right"}`}>
+        <Mascot side={side} className="breathe h-20 w-20 sm:h-28 sm:w-28 md:h-20 md:w-20 xl:h-32 xl:w-32 shrink-0" />
+
+        <div className="min-w-0 flex-1">
+          <div className="text-sm sm:text-base font-semibold text-foreground truncate">{team.name}</div>
+          <div className="font-mono text-[11px] text-muted mb-2">{team.shortName}</div>
+
+          <div className="relative inline-block">
+            {/* tick flash — remounts on every change of the total */}
+            <span key={score.total} className={`absolute -inset-x-1.5 -inset-y-0.5 rounded ${isBull ? "flash-bull" : "flash-bear"}`} />
+            <AnimatedNumber
+              value={score.total}
+              format={(n) => formatINR(n)}
+              className="relative block text-3xl sm:text-4xl md:text-3xl lg:text-4xl xl:text-5xl font-bold leading-none whitespace-nowrap"
+            />
+          </div>
+
+          <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs ${isBull ? "" : "justify-end"}`}>
+            <span style={{ color }} className="font-semibold tabular-nums">
+              {score.percentage.toFixed(1)}% share
+            </span>
+            <span className="text-muted tabular-nums">
+              {score.supporterCount.toLocaleString("en-IN")} supporters
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {canBack && onBack && (
+        <div className="hidden md:block mt-auto p-6 pt-0">
+          <button
+            onClick={() => onBack(team)}
+            className="group w-full min-h-11 rounded font-mono text-sm font-bold uppercase tracking-wider text-black transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] cursor-pointer"
+            style={{ background: color, boxShadow: `0 0 24px -6px ${glow}` }}
+          >
+            {isBull ? "▲" : "▼"} Back {team.shortName}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DominanceBar({ teamA, teamB, score }: { teamA: TeamDTO; teamB: TeamDTO; score: CampaignScoreDTO }) {
+  const empty = score.combinedTotal === 0;
+  const aPct = empty ? 50 : score.teamA.percentage;
+  const aLeading = score.leaderTeamId === teamA.id;
+
+  return (
+    <div className="panel mt-3">
+      <div className="panel-header">
+        <span className="text-foreground">Dominance</span>
+        <span className="normal-case tracking-normal font-mono text-[11px]">
+          {score.differenceAmount === 0 ? (
+            <span className="text-muted">Dead even — every rupee counts</span>
+          ) : (
+            <>
+              <span style={{ color: aLeading ? "var(--bull)" : "var(--bear)" }} className="font-semibold">
+                {aLeading ? teamA.shortName : teamB.shortName}
+              </span>
+              <span className="text-muted"> leads by </span>
+              <span className="text-foreground tabular-nums">{formatINRCompact(score.differenceAmount)}</span>
+            </>
+          )}
+        </span>
+      </div>
+      <div className="px-4 py-3">
+        <div className="flex justify-between font-mono text-xs mb-1.5 tabular-nums">
+          <span className="text-bull font-semibold">▲ {teamA.shortName} {empty ? "—" : `${score.teamA.percentage.toFixed(1)}%`}</span>
+          <span className="text-bear font-semibold">{empty ? "—" : `${score.teamB.percentage.toFixed(1)}%`} {teamB.shortName} ▼</span>
+        </div>
+        <div
+          className="sweep relative h-3 rounded-sm overflow-hidden bg-white/5"
+          role="meter"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={aPct}
+          aria-label={`${teamA.shortName} share of total support`}
+        >
+          <div
+            className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
+            style={{ width: `${aPct}%`, background: "linear-gradient(90deg, rgba(22,199,132,0.55), var(--bull))" }}
+          />
+          <div
+            className="absolute inset-y-0 right-0 transition-[width] duration-700 ease-out"
+            style={{ width: `${100 - aPct}%`, background: "linear-gradient(270deg, rgba(246,70,93,0.55), var(--bear))" }}
+          />
+          <div
+            className="absolute inset-y-0 w-0.5 bg-foreground transition-[left] duration-700 ease-out"
+            style={{ left: `calc(${aPct}% - 1px)` }}
+          />
+          {/* 50% reference */}
+          <div className="absolute inset-y-0 left-1/2 w-px bg-black/60" />
+        </div>
       </div>
     </div>
   );
