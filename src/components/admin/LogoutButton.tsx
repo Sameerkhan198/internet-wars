@@ -7,7 +7,7 @@ export default function LogoutButton() {
   return (
     <button
       onClick={async () => {
-        await fetch("/api/admin/logout", { method: "POST" });
+        await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
         router.push("/admin/login");
         router.refresh();
       }}

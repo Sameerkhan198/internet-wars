@@ -12,14 +12,19 @@ type State =
   | { step: "done"; teams: { shortName: string; total: number; supporters: number }[] }
   | { step: "error"; message: string };
 
-export default function SeedButton() {
+export default function SeedButton({ allowed, reason, phrase }: { allowed: boolean; reason?: string; phrase: string }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ step: "idle" });
+  const [typed, setTyped] = useState("");
 
   async function runSeed() {
     setState({ step: "running" });
     try {
-      const res = await fetch("/api/admin/seed", { method: "POST" });
+      const res = await fetch("/api/admin/seed", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirm: typed }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setState({ step: "error", message: data.error ?? "Seeding failed." });
@@ -64,20 +69,34 @@ export default function SeedButton() {
   if (state.step === "confirming") {
     return (
       <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
-        <div className="font-bold text-amber-400 mb-1">This replaces all campaign data</div>
+        <div className="font-bold text-amber-400 mb-1">Destructive: this deletes all campaign data</div>
         <div className="text-muted mb-3">
           Every existing campaign, contribution and activity event will be deleted and replaced with a fresh
           demo battle. There is no undo.
         </div>
+        <label htmlFor="seed-confirm" className="block text-xs text-muted mb-1">
+          Type <span className="font-mono text-foreground">{phrase}</span> to confirm
+        </label>
+        <input
+          id="seed-confirm"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoComplete="off"
+          className="mb-3 w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs"
+        />
         <div className="flex gap-2">
           <button
             onClick={runSeed}
-            className="rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide text-xs bg-foreground text-background"
+            disabled={typed !== phrase}
+            className="rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide text-xs bg-danger text-black disabled:opacity-30"
           >
-            Yes, replace it
+            Delete and reload demo data
           </button>
           <button
-            onClick={() => setState({ step: "idle" })}
+            onClick={() => {
+              setTyped("");
+              setState({ step: "idle" });
+            }}
             className="rounded-lg px-3 py-1.5 text-xs border border-border hover:border-foreground/40"
           >
             Cancel
@@ -87,13 +106,21 @@ export default function SeedButton() {
     );
   }
 
+  if (!allowed) {
+    return (
+      <span className="text-xs text-muted border border-border rounded-lg px-3 py-1.5" title={reason}>
+        Demo reset disabled — {reason}
+      </span>
+    );
+  }
+
   return (
     <button
       disabled={state.step === "running"}
       onClick={() => setState({ step: "confirming" })}
       className="text-sm border border-border rounded-lg px-3 py-1.5 hover:border-foreground/40 disabled:opacity-40"
     >
-      {state.step === "running" ? "Loading demo data..." : "Load demo data"}
+      {state.step === "running" ? "Resetting demo data..." : "Reset demo data…"}
     </button>
   );
 }

@@ -8,7 +8,17 @@ import type {
   RefundResult,
 } from "./provider";
 
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET ?? "demo_webhook_secret_change_me";
+// The fallback exists only for local development. In production a missing
+// secret fails closed: the default is public in this repo, so signing or
+// verifying with it would let anyone forge a "payment succeeded" webhook.
+function webhookSecret(): string {
+  const secret = process.env.WEBHOOK_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("WEBHOOK_SECRET is not configured; refusing to sign or verify webhooks.");
+  }
+  return "demo_webhook_secret_change_me";
+}
 const FAILURE_RATE = Number(process.env.DEMO_PAYMENT_FAILURE_RATE ?? "0.08");
 
 // In-memory store for the demo provider's own bookkeeping. This simulates the
@@ -26,7 +36,7 @@ type DemoOrder = {
 const demoOrders = new Map<string, DemoOrder>();
 
 export function signDemoWebhook(payload: string): string {
-  return crypto.createHmac("sha256", WEBHOOK_SECRET).update(payload).digest("hex");
+  return crypto.createHmac("sha256", webhookSecret()).update(payload).digest("hex");
 }
 
 function verifyDemoWebhookSignature(payload: string, signature: string | null): boolean {
@@ -39,6 +49,8 @@ function verifyDemoWebhookSignature(payload: string, signature: string | null): 
 }
 
 export const demoProvider: PaymentProvider = {
+  id: "demo",
+
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
     const providerOrderId = `demo_order_${crypto.randomUUID()}`;
     const providerTransactionId = `demo_txn_${crypto.randomUUID()}`;

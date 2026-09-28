@@ -36,6 +36,8 @@ export type RefundResult = {
  * always go through getPaymentProvider().
  */
 export interface PaymentProvider {
+  /** Stored on each Payment row. "demo" means no real money can move. */
+  readonly id: string;
   createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>;
   verifyPayment(providerOrderId: string): Promise<VerifyPaymentResult>;
   handleWebhook(rawBody: string, headers: Headers): Promise<WebhookHandleResult>;

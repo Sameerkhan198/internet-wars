@@ -224,11 +224,31 @@ model ShareEvent {
 }
 
 model AdminUser {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
+  // scrypt, self-describing: "scrypt$N$r$p$saltB64$hashB64" (src/server/adminAuth.ts)
   passwordHash String
-  role         String   @default("ADMIN")
-  createdAt    DateTime @default(now())
+  role         String    @default("ADMIN")
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  sessions AdminSession[]
+}
+
+// Server-side admin sessions. The cookie holds a random token; only its
+// SHA-256 is stored, so a database leak can't be replayed as a login.
+// Logout sets revokedAt, which ends the session immediately.
+model AdminSession {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  adminUserId String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
 }
 
 model RateLimitBucket {

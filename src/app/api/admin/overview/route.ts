@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdminApi } from "@/server/adminAuth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAdminApi(request);
+  if (auth.response) return auth.response;
+
   const [totalContributors, successCount, failedCount, refundedCount, allStatuses, totalShares, sumResult] =
     await Promise.all([
       prisma.contribution.groupBy({ by: ["userId", "displayName"], where: { status: "SUCCESS" } }).then((r) => r.length),

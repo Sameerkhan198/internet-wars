@@ -2,11 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { formatINR } from "@/lib/money";
 import LogoutButton from "@/components/admin/LogoutButton";
 import SeedButton from "@/components/admin/SeedButton";
+import { requireAdminPage } from "@/server/adminAuth";
+import { DEMO_RESET_PHRASE, demoResetStatus } from "@/server/demoMode";
 
 export const metadata = { title: "Admin — Internet Wars" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage() {
+  // Server-side check on every render — the proxy cookie check is only a pre-filter.
+  const admin = await requireAdminPage();
+  const reset = await demoResetStatus();
   const [successCount, failedCount, refundedCount, totalShares, sumResult, campaigns, recentTransactions] =
     await Promise.all([
       prisma.contribution.count({ where: { status: "SUCCESS" } }),
@@ -30,8 +35,9 @@ export default async function AdminOverviewPage() {
     <main className="flex-1 mx-auto max-w-6xl w-full px-4 sm:px-6 py-12">
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <h1 className="text-3xl font-black tracking-tight">Admin Overview</h1>
-        <div className="flex items-center gap-2">
-          <SeedButton />
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="font-mono text-xs text-muted">{admin.email}</span>
+          <SeedButton allowed={reset.allowed} reason={reset.allowed ? undefined : reset.reason} phrase={DEMO_RESET_PHRASE} />
           <LogoutButton />
         </div>
       </div>
