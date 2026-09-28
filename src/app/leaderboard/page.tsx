@@ -7,6 +7,7 @@ import Mascot from "@/components/Mascot";
 import PageHeader from "@/components/PageHeader";
 import StatusPill from "@/components/StatusPill";
 import DataUnavailable, { loadOrNull } from "@/components/DataUnavailable";
+import TrackPageView from "@/components/TrackPageView";
 
 export const metadata = { title: "Leaderboard — Internet Wars" };
 export const dynamic = "force-dynamic";
@@ -64,6 +65,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
   return (
     <main className="flex-1 bg-terminal">
+      <TrackPageView page="leaderboard" campaignSlug={campaign.slug} />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
         <PageHeader
           eyebrow={

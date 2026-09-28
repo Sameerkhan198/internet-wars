@@ -9,6 +9,7 @@ import StatusPill from "@/components/StatusPill";
 import { requireAdminPage } from "@/server/adminAuth";
 import { DEMO_RESET_PHRASE, demoResetStatus } from "@/server/demoMode";
 import { computeCampaignScore } from "@/server/scoring";
+import { funnelReport } from "@/server/analyticsReport";
 
 export const metadata = { title: "Admin — Internet Wars" };
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function AdminOverviewPage() {
   // Server-side check on every render — the proxy cookie check is only a pre-filter.
   const admin = await requireAdminPage();
   const reset = await demoResetStatus();
+  const funnel = await funnelReport(7);
   const [successCount, failedCount, refundedCount, totalShares, sumResult, campaigns, recentTransactions] =
     await Promise.all([
       prisma.contribution.count({ where: { status: "SUCCESS" } }),
@@ -113,6 +115,42 @@ export default async function AdminOverviewPage() {
             </table>
           </div>
         )}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <span className="text-foreground">Engagement funnel</span>
+          <span>Last {funnel.days} days · distinct sessions</span>
+        </div>
+        <div className="relative overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="label !text-[10px] border-b border-border">
+                <th scope="col" className="text-left font-normal px-4 py-2">Step</th>
+                <th scope="col" className="text-right font-normal px-4 py-2">Sessions</th>
+                <th scope="col" className="text-right font-normal px-4 py-2">Events</th>
+                <th scope="col" className="text-right font-normal px-4 py-2">From previous</th>
+              </tr>
+            </thead>
+            <tbody>
+              {funnel.steps.map((st, i) => {
+                const prev = i > 0 ? funnel.steps[i - 1].sessions : 0;
+                return (
+                  <tr key={st.name} className="border-b border-border/60 last:border-0 font-mono text-xs">
+                    <td className="px-4 py-2 font-sans text-sm">{st.label}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{st.sessions.toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted">{st.events.toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted">{i === 0 || prev === 0 ? "—" : `${Math.round((st.sessions / prev) * 100)}%`}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-4 py-3 border-t border-border font-mono text-[11px] text-muted">
+          Returning-visitor page views: {funnel.returningPageViews.toLocaleString("en-IN")} · Leaderboard views: {funnel.leaderboardViews.toLocaleString("en-IN")} ·
+          First-party, cookieless; browsers with Do Not Track / GPC send nothing.
+        </p>
       </section>
 
       <section className="panel">

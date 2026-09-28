@@ -3,6 +3,7 @@ import "@fontsource-variable/ibm-plex-sans";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 import TerminalHeader from "@/components/TerminalHeader";
+import { Analytics } from "@vercel/analytics/next";
 import Footer from "@/components/Footer";
 import DemoModeBanner from "@/components/DemoModeBanner";
 
@@ -31,6 +32,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <TerminalHeader />
         <div className="flex-1 flex flex-col">{children}</div>
         <Footer />
+        {/* Cookieless page views; active once Web Analytics is enabled in the Vercel dashboard. */}
+        <Analytics />
       </body>
     </html>
   );

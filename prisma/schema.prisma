@@ -259,3 +259,19 @@ model RateLimitBucket {
 
   @@index([bucketKey])
 }
+
+// First-party, privacy-light product analytics (Phase 4). Stores only an
+// allow-listed event name, the campaign, a random per-tab session id (from
+// sessionStorage — not a cookie, not linked to any person) and a few
+// allow-listed properties. Never IP, name, email or payment data.
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  name       String
+  campaignId String?
+  sessionId  String
+  props      String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([campaignId, createdAt])
+}

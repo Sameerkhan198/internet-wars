@@ -1,86 +1,137 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { formatINR } from "@/lib/money";
+import { formatINRCompact } from "@/lib/money";
+import { sideVisual } from "@/lib/sides";
+import { track } from "@/lib/analytics";
+import type { ShareChannel } from "@/lib/share";
 import type { CampaignDTO, CampaignScoreDTO, TeamDTO } from "@/lib/types";
+
+/**
+ * Post-support share card. Every number comes from `score`, the latest
+ * server-verified battle totals held by BattleView (refreshed by polling) —
+ * nothing is estimated here. The share text states the side and the current
+ * verified standing; it does not include the supporter's own amount.
+ */
+export function buildShareText(teamName: string, isLeading: boolean, isEven: boolean, share: number, gap: string, supporters: number) {
+  const standing = isEven
+    ? "It's dead even right now"
+    : isLeading
+      ? `It leads with ${share.toFixed(1)}% of verified support`
+      : `It's ${gap} behind with ${share.toFixed(1)}% of verified support`;
+  return `I backed ${teamName} in Internet Wars. ${standing} (${supporters.toLocaleString("en-IN")} supporters so far). Pick your side:`;
+}
 
 export default function ShareCard({
   campaign,
   team,
+  slot,
   score,
-  amountRupees,
   onClose,
 }: {
   campaign: CampaignDTO;
   team: TeamDTO;
+  slot: "a" | "b";
   score: CampaignScoreDTO;
-  amountRupees: number;
   onClose: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
 
-  const isTeamA = team.slug === "stocks";
-  const myScore = isTeamA ? score.teamA : score.teamB;
-  const otherScore = isTeamA ? score.teamB : score.teamA;
-  const accent = isTeamA ? "#22d3a8" : "#a78bfa";
-  const behindBy = Math.max(0, otherScore.percentage - myScore.percentage);
-  const url = typeof window !== "undefined" ? window.location.origin : "";
+  const visual = sideVisual(team.accentTheme, slot);
+  const mine = slot === "a" ? score.teamA : score.teamB;
+  const isEven = score.leaderTeamId === null;
+  const isLeading = score.leaderTeamId === team.id;
+  const supporters = score.teamA.supporterCount + score.teamB.supporterCount;
+  const gap = formatINRCompact(score.differenceAmount);
+  const url = typeof window !== "undefined" ? `${window.location.origin}/` : "";
+  const text = buildShareText(team.name, isLeading, isEven, mine.percentage, gap, supporters);
+  const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
-  const shareText = `I backed ${team.name} in Internet Wars! ${formatINR(amountRupees * 100)} contributed. ${team.shortName} is at ${myScore.percentage.toFixed(1)}% — help us take #1!`;
+  function record(channel: ShareChannel) {
+    track("share_clicked", { channel }, campaign.slug);
+    fetch("/api/share", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ campaignSlug: campaign.slug, channel }),
+    }).catch(() => {});
+  }
 
-  function drawCard(): HTMLCanvasElement {
+  function open(channel: "whatsapp" | "x" | "linkedin") {
+    const t = encodeURIComponent(text);
+    const u = encodeURIComponent(url);
+    const links = {
+      whatsapp: `https://wa.me/?text=${t}%20${u}`,
+      x: `https://x.com/intent/post?text=${t}&url=${u}`,
+      // LinkedIn's share endpoint only accepts a URL; the page's own OG tags supply the preview.
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
+    };
+    record(channel);
+    window.open(links[channel], "_blank", "noopener,noreferrer");
+  }
+
+  async function nativeShare() {
+    record("native");
+    try {
+      await navigator.share({ title: "Internet Wars", text, url });
+    } catch {
+      // user dismissed the sheet
+    }
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Copy this link:", url);
+    }
+    record("copy_link");
+  }
+
+  function download() {
     const canvas = canvasRef.current!;
     canvas.width = 1080;
     canvas.height = 1080;
     const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#05070a";
+    ctx.fillRect(0, 0, 1080, 1080);
+    const glow = ctx.createRadialGradient(slot === "a" ? 0 : 1080, 0, 0, slot === "a" ? 0 : 1080, 0, 900);
+    glow.addColorStop(0, visual.dim);
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, 1080, 1080);
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#0d0f14");
-    gradient.addColorStop(1, "#08090c");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const mono = "'JetBrains Mono Variable', ui-monospace, Consolas, monospace";
+    const sans = "'IBM Plex Sans Variable', system-ui, sans-serif";
+    ctx.fillStyle = visual.color;
+    ctx.font = `700 40px ${mono}`;
+    ctx.fillText(`${visual.glyph} I BACKED`, 80, 170);
+    ctx.fillStyle = "#e6edf3";
+    ctx.font = `700 92px ${sans}`;
+    wrap(ctx, team.name, 80, 280, 920, 104);
 
-    ctx.fillStyle = accent;
-    ctx.font = "bold 44px Arial";
-    ctx.fillText(`I BACKED ${team.shortName}`, 80, 160);
+    ctx.fillStyle = visual.color;
+    ctx.font = `700 150px ${mono}`;
+    ctx.fillText(`${mine.percentage.toFixed(1)}%`, 80, 600);
+    ctx.fillStyle = "#7d8896";
+    ctx.font = `500 34px ${mono}`;
+    ctx.fillText("OF VERIFIED SUPPORT", 84, 660);
 
-    ctx.fillStyle = "#f4f5f7";
-    ctx.font = "black 120px Arial";
-    ctx.fillText(formatINR(amountRupees * 100), 80, 320);
+    ctx.fillStyle = "#e6edf3";
+    ctx.font = `500 38px ${sans}`;
+    ctx.fillText(isEven ? "Dead even right now" : isLeading ? "Leading right now" : `${gap} behind right now`, 80, 760);
+    ctx.fillText(`${supporters.toLocaleString("en-IN")} supporters so far`, 80, 815);
 
-    ctx.fillStyle = "#8b93a3";
-    ctx.font = "32px Arial";
-    ctx.fillText(team.name.toUpperCase(), 80, 400);
+    ctx.fillStyle = "#273142";
+    ctx.fillRect(80, 900, 920, 2);
+    ctx.fillStyle = "#7d8896";
+    ctx.font = `600 30px ${mono}`;
+    ctx.fillText("INTERNET/WARS", 80, 960);
+    ctx.font = `400 28px ${mono}`;
+    ctx.fillText(url.replace(/^https?:\/\//, "").replace(/\/$/, ""), 80, 1005);
 
-    ctx.fillStyle = accent;
-    ctx.font = "bold 96px Arial";
-    ctx.fillText(`${myScore.percentage.toFixed(1)}%`, 80, 540);
-
-    ctx.fillStyle = "#f4f5f7";
-    ctx.font = "36px Arial";
-    const behindText =
-      behindBy <= 0 ? "We're in the lead!" : `Only ${behindBy.toFixed(1)}% behind the other side`;
-    ctx.fillText(behindText, 80, 610);
-
-    ctx.strokeStyle = "#21242e";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(60, 700, 960, 4);
-
-    ctx.fillStyle = "#f4f5f7";
-    ctx.font = "bold 40px Arial";
-    ctx.fillText("Help us take #1", 80, 800);
-
-    ctx.fillStyle = "#8b93a3";
-    ctx.font = "28px Arial";
-    ctx.fillText("INTERNET WARS", 80, 980);
-    ctx.fillText("Indian Stock Market vs Forex Market", 80, 1020);
-
-    return canvas;
-  }
-
-  function handleDownload() {
-    const canvas = drawCard();
     canvas.toBlob((blob) => {
       if (!blob) return;
       const link = document.createElement("a");
@@ -89,85 +140,68 @@ export default function ShareCard({
       link.click();
       URL.revokeObjectURL(link.href);
     }, "image/png");
-  }
-
-  async function handleCopyLink() {
-    await navigator.clipboard.writeText(url);
-    await fetch("/api/share", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ campaignSlug: campaign.slug, channel: "copy_link" }),
-    }).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  function shareTo(channel: "whatsapp" | "x" | "telegram") {
-    const encoded = encodeURIComponent(shareText);
-    const encodedUrl = encodeURIComponent(url);
-    const links: Record<string, string> = {
-      whatsapp: `https://wa.me/?text=${encoded}%20${encodedUrl}`,
-      x: `https://twitter.com/intent/tweet?text=${encoded}&url=${encodedUrl}`,
-      telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encoded}`,
-    };
-    fetch("/api/share", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ campaignSlug: campaign.slug, channel }),
-    }).catch(() => {});
-    window.open(links[channel], "_blank", "noopener,noreferrer");
+    record("download");
   }
 
   return (
     <div className="space-y-5">
-      <div
-        className="rounded-xl border p-6 space-y-3"
-        style={{ borderColor: accent, background: "linear-gradient(180deg, rgba(255,255,255,0.03), transparent)" }}
-      >
-        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: accent }}>
-          I backed {team.shortName}
+      <div className="text-center" role="status">
+        <div className="label mb-1" style={{ color: "var(--bull)" }}>
+          Verified
         </div>
-        <div className="numeric text-3xl font-black">{formatINR(amountRupees * 100)}</div>
-        <div className="numeric text-4xl font-black" style={{ color: accent }}>
-          {myScore.percentage.toFixed(1)}%
+        <p className="font-semibold">Your support is on the scoreboard.</p>
+      </div>
+
+      <div className="rounded border p-5 space-y-2" style={{ borderColor: visual.color, background: `linear-gradient(180deg, ${visual.dim}, transparent)` }}>
+        <div className="label" style={{ color: visual.color }}>
+          {visual.glyph} I backed {team.shortName}
+        </div>
+        <div className="numeric text-4xl font-bold" style={{ color: visual.color }}>
+          {mine.percentage.toFixed(1)}%
         </div>
         <div className="text-sm text-muted">
-          {behindBy <= 0 ? "We're in the lead!" : `Only ${behindBy.toFixed(1)}% behind — help us take #1`}
+          {isEven ? "Dead even right now" : isLeading ? "Leading right now" : `${gap} behind right now`} ·{" "}
+          {supporters.toLocaleString("en-IN")} supporters
         </div>
       </div>
 
-      <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
+      {canNativeShare && (
+        <button onClick={nativeShare} className={`${btn} w-full bg-foreground text-background border-foreground`}>
+          Share…
+        </button>
+      )}
       <div className="grid grid-cols-2 gap-2">
-        <ShareButton onClick={() => shareTo("whatsapp")}>WhatsApp</ShareButton>
-        <ShareButton onClick={() => shareTo("x")}>X</ShareButton>
-        <ShareButton onClick={() => shareTo("telegram")}>Telegram</ShareButton>
-        <ShareButton onClick={handleDownload}>Download Card</ShareButton>
+        <button onClick={() => open("whatsapp")} className={btn}>WhatsApp</button>
+        <button onClick={() => open("x")} className={btn}>X</button>
+        <button onClick={() => open("linkedin")} className={btn}>LinkedIn</button>
+        <button onClick={download} className={btn}>Download card</button>
       </div>
-      <button
-        onClick={handleCopyLink}
-        className="w-full rounded-lg py-2.5 text-sm font-semibold border border-border hover:border-foreground/40 transition-colors"
-      >
-        {copied ? "Link copied!" : "Copy Link"}
+      <button onClick={copyLink} className={`${btn} w-full`} aria-live="polite">
+        {copied ? "Copied!" : "Copy link"}
       </button>
 
-      <button
-        onClick={onClose}
-        className="w-full rounded-lg py-3 font-bold uppercase tracking-wide bg-foreground text-background"
-      >
+      <button onClick={onClose} className="w-full min-h-11 rounded font-mono text-sm font-bold uppercase tracking-wider border border-border hover:border-foreground/40">
         Done
       </button>
     </div>
   );
 }
 
-function ShareButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="rounded-lg py-2.5 text-sm font-semibold border border-border hover:border-foreground/40 transition-colors"
-    >
-      {children}
-    </button>
-  );
+const btn = "min-h-11 rounded border border-border text-sm font-semibold hover:border-foreground/40 transition-colors";
+
+function wrap(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
+  const words = text.split(" ");
+  let line = "";
+  let lines = 0;
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y + lines * lineHeight);
+      line = w;
+      if (++lines >= 2) break;
+    } else line = test;
+  }
+  if (lines < 2) ctx.fillText(line, x, y + lines * lineHeight);
 }

@@ -11,6 +11,8 @@ import TickerTape from "./TickerTape";
 import BattleChart from "./BattleChart";
 import Mascot from "./Mascot";
 import StatusPill from "./StatusPill";
+import TrackPageView from "./TrackPageView";
+import { track } from "@/lib/analytics";
 import { useCampaignPolling } from "@/hooks/useCampaignPolling";
 import { formatINRCompact } from "@/lib/money";
 import { sideVisual } from "@/lib/sides";
@@ -50,6 +52,14 @@ export default function BattleView({
   const [events, setEvents] = useState<ActivityEventDTO[]>([]);
   const [activeTeam, setActiveTeam] = useState<TeamDTO | null>(null);
   const [failedPolls, setFailedPolls] = useState(0);
+
+  const openFor = useCallback(
+    (team: TeamDTO) => {
+      track("side_selected", { side: team.id === teamA.id ? "a" : "b" }, campaign.slug);
+      setActiveTeam(team);
+    },
+    [teamA.id, campaign.slug]
+  );
 
   const onFeedHealth = useCallback((ok: boolean) => setFailedPolls((n) => (ok ? 0 : n + 1)), []);
 
@@ -92,6 +102,7 @@ export default function BattleView({
 
   return (
     <main className="flex-1" style={sideVars}>
+      <TrackPageView page="battle" campaignSlug={campaign.slug} />
       <TickerTape teamA={teamA} teamB={teamB} score={score} momentum={momentum} />
       {feedDown && (
         <div role="status" className="border-b border-signal/30 bg-signal/10 px-4 py-2 text-center font-mono text-xs text-signal">
@@ -140,7 +151,7 @@ export default function BattleView({
             teamB={teamB}
             score={score}
             center={<Countdown startAt={campaign.startAt} endAt={campaign.endAt} status={campaign.status} />}
-            onBack={setActiveTeam}
+            onBack={openFor}
             canBack={isLive}
           />
 
@@ -162,8 +173,8 @@ export default function BattleView({
 
       {isLive && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-2 gap-2 p-3 bg-background/95 backdrop-blur border-t border-border">
-          <MobileCta team={teamA} slot="a" onClick={() => setActiveTeam(teamA)} />
-          <MobileCta team={teamB} slot="b" onClick={() => setActiveTeam(teamB)} />
+          <MobileCta team={teamA} slot="a" onClick={() => openFor(teamA)} />
+          <MobileCta team={teamB} slot="b" onClick={() => openFor(teamB)} />
         </div>
       )}
 
