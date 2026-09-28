@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { contributeSchema } from "@/lib/validation";
 import { initiateContribution, ContributionError } from "@/server/contributions";
 import { checkRateLimit, getClientIp, hashIp } from "@/server/rateLimit";
+import { withUnavailable } from "@/server/apiGuard";
 
-export async function POST(request: Request) {
+export const POST = withUnavailable("contribute", async (request: Request) => {
   const ip = getClientIp(request);
   const rate = await checkRateLimit(`contribute:${ip}`, 10, 60_000);
   if (!rate.allowed) {
@@ -58,4 +59,4 @@ export async function POST(request: Request) {
     console.error("contribute error", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
-}
+});

@@ -20,16 +20,20 @@ export function useCampaignPolling(
   slug: string,
   intervalMs: number,
   onUpdate: (data: CampaignApiResponse) => void,
-  onActivity: (events: ActivityEventDTO[]) => void
+  onActivity: (events: ActivityEventDTO[]) => void,
+  /** Called after every poll: true if the verified score loaded, false if not. */
+  onFeedHealth?: (ok: boolean) => void
 ) {
   const onUpdateRef = useRef(onUpdate);
   const onActivityRef = useRef(onActivity);
+  const onFeedHealthRef = useRef(onFeedHealth);
   const lastSeenIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
     onActivityRef.current = onActivity;
-  }, [onUpdate, onActivity]);
+    onFeedHealthRef.current = onFeedHealth;
+  }, [onUpdate, onActivity, onFeedHealth]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,20 +49,30 @@ export function useCampaignPolling(
         if (campaignRes.ok) {
           const data = (await campaignRes.json()) as CampaignApiResponse;
           onUpdateRef.current(data);
+          onFeedHealthRef.current?.(true);
+        } else {
+          onFeedHealthRef.current?.(false);
         }
 
         if (activityRes.ok) {
           const { events } = (await activityRes.json()) as { events: ActivityEventDTO[] };
-          // events arrive newest-first; only surface ones we haven't shown yet.
+          // Events arrive newest-first and are prepended newest-first, so the
+          // feed keeps newest on top. Only surface ones we haven't shown yet;
+          // if the last-seen event scrolled out of this page, show the page.
           const lastSeenId = lastSeenIdRef.current;
-          const freshEvents = lastSeenId
-            ? events.slice(0, events.findIndex((e) => e.id === lastSeenId)).reverse()
-            : events.slice(0, 1).reverse(); // first poll: seed with just the latest, don't dump history
+          const seenAt = lastSeenId ? events.findIndex((e) => e.id === lastSeenId) : -1;
+          const freshEvents = !lastSeenId
+            ? events.slice(0, 1) // first poll: seed with just the latest, don't dump history
+            : seenAt === -1
+              ? events
+              : events.slice(0, seenAt);
           if (events.length > 0) lastSeenIdRef.current = events[0].id;
           if (freshEvents.length > 0) onActivityRef.current(freshEvents);
         }
       } catch {
-        // A missed poll just means the next one (a few seconds later) catches up.
+        // A missed poll: the next one catches up; the page is told so it can
+        // flag the shown figures as stale if this keeps happening.
+        if (!cancelled) onFeedHealthRef.current?.(false);
       }
     }
 

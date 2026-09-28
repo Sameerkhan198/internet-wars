@@ -49,6 +49,9 @@ export default function BattleView({
   const [lastTick, setLastTick] = useState<Date | null>(null);
   const [events, setEvents] = useState<ActivityEventDTO[]>([]);
   const [activeTeam, setActiveTeam] = useState<TeamDTO | null>(null);
+  const [failedPolls, setFailedPolls] = useState(0);
+
+  const onFeedHealth = useCallback((ok: boolean) => setFailedPolls((n) => (ok ? 0 : n + 1)), []);
 
   const onUpdate = useCallback(
     (data: { score: CampaignScoreDTO; momentum: { teamA10m: number; teamB10m: number } }) => {
@@ -69,7 +72,9 @@ export default function BattleView({
     setEvents((prev) => [...newEvents, ...prev].slice(0, 30));
   }, []);
 
-  useCampaignPolling(campaign.slug, POLL_INTERVAL_MS, onUpdate, onActivity);
+  useCampaignPolling(campaign.slug, POLL_INTERVAL_MS, onUpdate, onActivity, onFeedHealth);
+  // Two misses in a row (~8s): say so, and label the figures as last-verified.
+  const feedDown = failedPolls >= 2;
 
   const isLive = campaign.status === "LIVE";
   const va = sideVisual(teamA.accentTheme, "a");
@@ -88,6 +93,12 @@ export default function BattleView({
   return (
     <main className="flex-1" style={sideVars}>
       <TickerTape teamA={teamA} teamB={teamB} score={score} momentum={momentum} />
+      {feedDown && (
+        <div role="status" className="border-b border-signal/30 bg-signal/10 px-4 py-2 text-center font-mono text-xs text-signal">
+          Live feed interrupted — showing the last verified figures
+          {lastTick ? ` from ${lastTick.toLocaleTimeString("en-IN", { hour12: false, timeZone: "Asia/Kolkata" })} IST` : ""}. Reconnecting…
+        </div>
+      )}
 
       <div className="bg-terminal">
         <section className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 sm:pt-12 pb-6">
@@ -128,7 +139,7 @@ export default function BattleView({
             teamA={teamA}
             teamB={teamB}
             score={score}
-            center={<Countdown endAt={campaign.endAt} status={campaign.status} />}
+            center={<Countdown startAt={campaign.startAt} endAt={campaign.endAt} status={campaign.status} />}
             onBack={setActiveTeam}
             canBack={isLive}
           />

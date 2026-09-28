@@ -14,7 +14,10 @@ function getRemaining(endAt: string): Remaining {
   return { days, hours, minutes, seconds, ended: false };
 }
 
-export default function Countdown({ endAt, status }: { endAt: string; status: string }) {
+export default function Countdown({ startAt, endAt, status }: { startAt?: string; endAt: string; status: string }) {
+  // A scheduled battle counts down to its opening; otherwise to its close.
+  const opening = status === "SCHEDULED" && !!startAt;
+  const target = opening ? startAt! : endAt;
   // Server and client compute Date.now() at slightly different instants, so
   // the ticking values must never be part of the first render — otherwise
   // hydration mismatches. Render null (a stable placeholder) until mounted,
@@ -25,12 +28,20 @@ export default function Countdown({ endAt, status }: { endAt: string; status: st
     // Reading the clock is an external-system sync, not derived state — see
     // the identical rationale in profile/page.tsx's localStorage read.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRemaining(getRemaining(endAt));
-    const id = setInterval(() => setRemaining(getRemaining(endAt)), 1000);
+    setRemaining(getRemaining(target));
+    const id = setInterval(() => setRemaining(getRemaining(target)), 1000);
     return () => clearInterval(id);
-  }, [endAt]);
+  }, [target]);
 
-  if (status === "ENDED" || remaining?.ended) {
+  if (status === "CANCELLED") {
+    return <Status label="Cancelled" color="var(--muted)" />;
+  }
+
+  if (opening && remaining?.ended) {
+    return <Status label="Opening now" color="var(--signal)" />;
+  }
+
+  if (status === "ENDED" || (!opening && remaining?.ended)) {
     return <Status label="Battle ended" color="var(--bear)" />;
   }
 
@@ -49,7 +60,7 @@ export default function Countdown({ endAt, status }: { endAt: string; status: st
 
   return (
     <div className="text-center rounded border border-border bg-panel px-3 py-2">
-      <div className="label mb-1.5">Closes in</div>
+      <div className="label mb-1.5">{opening ? "Opens in" : "Closes in"}</div>
       <div className="flex items-start justify-center">
         {unit(remaining?.days, "D")}
         <span className="numeric text-lg text-muted">:</span>

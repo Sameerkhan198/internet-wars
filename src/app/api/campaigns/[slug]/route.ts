@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getCampaignBySlug } from "@/server/campaign";
 import { computeCampaignScore, computeMomentum } from "@/server/scoring";
+import { withUnavailable } from "@/server/apiGuard";
 
-export async function GET(
+export const GET = withUnavailable("campaign", async (
   _request: Request,
   ctx: { params: Promise<{ slug: string }> }
-) {
+) => {
   const { slug } = await ctx.params;
   const campaign = await getCampaignBySlug(slug);
-  if (!campaign) {
+  // Drafts and team-less campaigns are not public.
+  if (!campaign || campaign.status === "DRAFT" || !campaign.teamAId || !campaign.teamBId) {
     return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
   }
 
@@ -41,4 +43,4 @@ export async function GET(
       teamB10m: teamBMomentum10m,
     },
   });
-}
+});
