@@ -1,5 +1,10 @@
 # Handoff — Internet Wars
 
+> **Updated 28 Sep 2026:** several sections below are out of date — the deployment works, migrations
+> replaced `db push`, admin uses per-person accounts, and Prisma reads `supabase_POSTGRES_*` variables,
+> not `DATABASE_URL`. The current state is in **README.md** and **PHASE4_LAUNCH_READINESS.md**. The
+> invariants in §4 and the copy rules in §1 still apply unchanged.
+
 You are picking up an MVP that another developer (working with Claude Code) built from scratch. This
 document is written for **you and your AI assistant** — it covers what the project is, what state it's
 actually in, how it's put together, the rules that must not be broken, and the traps that will cost you

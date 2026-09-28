@@ -1,5 +1,24 @@
 # Internet Wars — Build Report
 
+> ## Update — 28 September 2026 (Phases 2–4)
+>
+> Everything below this box is the original 5 September build report, kept for history.
+>
+> - **27 Sep — deployment recovered.** The live site had been serving an old build that 500s. Causes:
+>   Prisma read `DATABASE_URL` but the Supabase integration injects prefixed names
+>   (`supabase_POSTGRES_PRISMA_URL`, `supabase_POSTGRES_URL_NON_POOLING`); the Supabase project had
+>   auto-paused; app settings were missing. Fixed in `ce5c266`, `70339ba`, `4b77d3b`.
+> - **28 Sep — trading-terminal redesign** merged (`82004b8`).
+> - **28 Sep — Phase 4 launch readiness:** migration history (`2d4c5dc`), admin accounts with DB
+>   sessions (`a216c92`), ledger concurrency fixes (`0aac550`), honest degradation (`4b196da`),
+>   campaign management (`7e7470d`), analytics + share + accessible dialog (`cb34656`).
+>   Tests: 31/31 on real PostgreSQL. Full details, test matrix, risks and required human actions:
+>   **PHASE4_LAUNCH_READINESS.md**.
+>
+> Superseded statements below: SQLite, “Live URL blocked”, “11 tests”, the shared admin password and
+> the Vercel CLI steps no longer apply.
+
+
 **Internet War #001 · Indian Stock Market vs Forex Market**
 
 A community competition MVP. The app is built, tested and on GitHub. The live public URL is the one

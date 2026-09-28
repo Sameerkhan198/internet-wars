@@ -25,28 +25,35 @@ export default function ProfilePage() {
 
   return (
     <main className="flex-1 mx-auto max-w-2xl w-full px-4 sm:px-6 py-12">
-      <h1 className="text-3xl font-black tracking-tight mb-1">Your Profile</h1>
+      <div className="label mb-1">This browser</div>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">Your support</h1>
       <p className="text-sm text-muted mb-8">
         This browser&apos;s contribution history. Create an account in a future update to sync this across
         devices.
       </p>
 
+      {!loaded && (
+        <p className="font-mono text-xs text-muted py-8 text-center" role="status">
+          Loading this browser&apos;s history…
+        </p>
+      )}
+
       {loaded && (
         <div className="grid grid-cols-2 gap-4 mb-10">
-          <div className="rounded-xl border border-border p-4 bg-background-elevated/40">
-            <div className="text-xs text-muted uppercase tracking-wider mb-1">Total Supported</div>
-            <div className="numeric text-2xl font-black">{formatINR(total)}</div>
+          <div className="panel p-4">
+            <div className="label mb-1">Total Supported</div>
+            <div className="numeric text-2xl font-semibold">{formatINR(total)}</div>
           </div>
-          <div className="rounded-xl border border-border p-4 bg-background-elevated/40">
-            <div className="text-xs text-muted uppercase tracking-wider mb-1">Battles Participated</div>
-            <div className="numeric text-2xl font-black">{battles}</div>
+          <div className="panel p-4">
+            <div className="label mb-1">Battles Participated</div>
+            <div className="numeric text-2xl font-semibold">{battles}</div>
           </div>
         </div>
       )}
 
-      <h2 className="text-sm font-bold uppercase tracking-widest text-muted mb-3">Contribution History</h2>
+      <h2 className="label mb-3">Contribution history</h2>
       {loaded && contributions.length === 0 && (
-        <p className="text-sm text-muted py-8 text-center border border-border rounded-xl">
+        <p className="panel text-sm text-muted py-8 text-center">
           No contributions yet from this browser.
         </p>
       )}
@@ -54,11 +61,11 @@ export default function ProfilePage() {
         {contributions.map((c) => (
           <li
             key={c.contributionId}
-            className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm bg-background-elevated/30"
+            className="panel flex items-center justify-between px-4 py-3 text-sm"
           >
             <div>
               <div className="font-semibold">{c.teamName}</div>
-              <div className="text-xs text-muted">{new Date(c.createdAt).toLocaleString("en-IN")}</div>
+              <div className="font-mono text-xs text-muted">{new Date(c.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", hour12: false })} IST</div>
             </div>
             <div className="numeric font-bold">{formatINR(c.amountRupees * 100)}</div>
           </li>
