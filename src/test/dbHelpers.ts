@@ -10,6 +10,8 @@ export async function resetDb() {
   await prisma.team.deleteMany();
   await prisma.campaign.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.adminSession.deleteMany();
+  await prisma.adminUser.deleteMany();
 }
 
 export async function createTestCampaign(overrides: Partial<{ status: string; endAt: Date }> = {}) {

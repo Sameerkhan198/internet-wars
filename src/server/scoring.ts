@@ -1,4 +1,8 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+
+/** The global client, or a transaction client when called inside $transaction. */
+type Db = Prisma.TransactionClient;
 
 /**
  * Server-authoritative scoring engine.
@@ -26,9 +30,10 @@ export type CampaignScore = {
 export async function computeCampaignScore(
   campaignId: string,
   teamAId: string,
-  teamBId: string
+  teamBId: string,
+  db: Db = prisma
 ): Promise<CampaignScore> {
-  const grouped = await prisma.contribution.groupBy({
+  const grouped = await db.contribution.groupBy({
     by: ["teamId"],
     where: { campaignId, status: "SUCCESS" },
     _sum: { amount: true },

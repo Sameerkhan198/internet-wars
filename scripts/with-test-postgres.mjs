@@ -52,7 +52,10 @@ const pg = new EmbeddedPostgres({
 });
 
 // schema=test matches src/test/setup.ts, which forces the same schema.
-const url = `postgresql://postgres:postgres@127.0.0.1:${PORT}/iw_test?schema=test`;
+// TEST_PG_CONNECTION_LIMIT=1 reproduces serverless (one connection per
+// function) — catches code that needs a 2nd connection inside a transaction.
+const limit = process.env.TEST_PG_CONNECTION_LIMIT ? `&connection_limit=${Number(process.env.TEST_PG_CONNECTION_LIMIT)}` : "";
+const url = `postgresql://postgres:postgres@127.0.0.1:${PORT}/iw_test?schema=test${limit}`;
 // Only the test cluster is visible to child processes — any hosted URL from
 // the parent environment is overwritten, never inherited.
 const env = {

@@ -75,7 +75,7 @@ export async function initiateContribution(params: {
   await prisma.payment.create({
     data: {
       contributionId: contribution.id,
-      provider: "demo",
+      provider: provider.id,
       providerOrderId,
       status: "PENDING",
       idempotencyKey,
@@ -120,10 +120,13 @@ async function deliverDemoWebhook(providerOrderId: string) {
 }
 
 /**
- * Applies a verified webhook result to a payment/contribution. Idempotent:
- * calling this twice with the same providerTransactionId only applies the
- * effect once, because we only act while the payment is still PENDING and we
- * transition it atomically inside the same transaction that reads it.
+ * Applies a verified webhook result to a payment/contribution. Idempotent and
+ * safe under concurrency: the PENDING → final transition is a single
+ * conditional UPDATE (`WHERE status = 'PENDING'`). Postgres row locking
+ * guarantees exactly one caller sees count = 1; every duplicate or concurrent
+ * delivery sees count = 0 and does nothing — no second activity event, no
+ * second snapshot. Scores never depended on this (they're recomputed from
+ * SUCCESS rows), but the side effects did.
  */
 export async function applyWebhookResult(input: {
   providerOrderId: string;
@@ -152,14 +155,20 @@ export async function applyWebhookResult(input: {
 
     // Snapshot the score BEFORE this contribution is applied, so we can detect
     // lead changes and milestone crossings caused specifically by this event.
+    // Uses the transaction's own connection: calling the global client here
+    // would need a second connection while this one is held, which deadlocks
+    // when the pool has one connection (typical for serverless) or is full.
     const before = await computeCampaignScore(
       payment.contribution.campaign.id,
       payment.contribution.campaign.teamAId!,
-      payment.contribution.campaign.teamBId!
+      payment.contribution.campaign.teamBId!,
+      tx
     );
 
-    await tx.payment.update({
-      where: { id: payment.id },
+    // The claim. Conditional on PENDING, so under concurrent delivery exactly
+    // one transaction wins; the others block on the row lock, then match 0 rows.
+    const claimed = await tx.payment.updateMany({
+      where: { id: payment.id, status: "PENDING" },
       data: {
         status: newStatus,
         providerTransactionId: input.providerTransactionId,
@@ -167,6 +176,9 @@ export async function applyWebhookResult(input: {
         verifiedAt: new Date(),
       },
     });
+    if (claimed.count !== 1) {
+      return { alreadyProcessed: true as const, contribution: payment.contribution };
+    }
 
     const contribution = await tx.contribution.update({
       where: { id: payment.contributionId },

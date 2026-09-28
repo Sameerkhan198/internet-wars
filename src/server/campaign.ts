@@ -23,22 +23,25 @@ async function maybeFinalize<T extends { id: string; status: string; endAt: Date
   const { computeCampaignScore } = await import("@/server/scoring");
   const score = await computeCampaignScore(campaign.id, campaign.teamAId!, campaign.teamBId!);
 
-  await prisma.campaign.update({
-    where: { id: campaign.id },
-    data: {
-      status: "ENDED",
-      winnerTeamId: score.leaderTeamId,
-      finalizedAt: new Date(),
-    },
+  // Idempotent under concurrency: many requests can arrive just after endAt.
+  // The conditional update (still LIVE) lets exactly one of them finalize;
+  // only that one records the CAMPAIGN_END event. Losers just read ENDED.
+  const finalizedAt = new Date();
+  const won = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.campaign.updateMany({
+      where: { id: campaign.id, status: "LIVE" },
+      data: { status: "ENDED", winnerTeamId: score.leaderTeamId, finalizedAt },
+    });
+    if (claimed.count !== 1) return false;
+    await tx.activityEvent.create({
+      data: { campaignId: campaign.id, type: "CAMPAIGN_END", message: "The battle has ended." },
+    });
+    return true;
   });
 
-  await prisma.activityEvent.create({
-    data: {
-      campaignId: campaign.id,
-      type: "CAMPAIGN_END",
-      message: "The battle has ended.",
-    },
-  });
-
+  if (!won) {
+    const current = await prisma.campaign.findUnique({ where: { id: campaign.id } });
+    return { ...campaign, status: current?.status ?? "ENDED" };
+  }
   return { ...campaign, status: "ENDED" };
 }
